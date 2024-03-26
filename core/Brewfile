@@ -1,0 +1,37 @@
+# Sources
+tap 'buo/cask-upgrade'
+
+# Utilities
+brew 'mas'
+brew 'git'
+brew 'tailscale'
+brew 'speedtest-cli'
+
+# Apps from "Web"
+cask 'proton-drive'
+cask 'warp'
+cask 'alfred'
+cask 'firefox'
+cask 'visual-studio-code'
+cask 'vlc'
+cask 'crossover'
+cask 'beeper'
+cask 'proton-mail'
+cask 'protonvpn'
+cask 'cryptomator'
+cask 'appcleaner'
+cask 'steam'
+cask 'spotify'
+cask 'little-snitch'
+cask 'keepingyouawake'
+# Apps for Work
+cask 'cisco-jabber'
+cask 'webex'
+cask 'citrix-workspace'
+
+# Apps from "App Store"
+mas 'Logic Pro', id: 634148309
+mas 'Pixelmator Pro', id: 1289583905
+mas 'Affinity Photo 2', id: 1616822987
+mas 'Affinity Designer 2', id: 1616831348
+mas 'Affinity Publisher 2', id: 1606941598
