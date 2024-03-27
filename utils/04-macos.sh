@@ -98,8 +98,16 @@ defaults write com.apple.finder ShowHardDrivesOnDesktop -bool false
 defaults write com.apple.finder ShowMountedServersOnDesktop -bool false
 defaults write com.apple.finder ShowRemovableMediaOnDesktop -bool false
 
-# Finder: show all filename extensions
-#defaults write NSGlobalDomain AppleShowAllExtensions -bool true
+# Automatically open a new Finder window when a volume is mounted
+defaults write com.apple.frameworks.diskimages auto-open-ro-root -bool true
+defaults write com.apple.frameworks.diskimages auto-open-rw-root -bool true
+defaults write com.apple.finder OpenWindowForNewRemovableDisk -bool true
+
+# Enable spring loading for directories
+defaults write NSGlobalDomain com.apple.springing.enabled -bool true
+
+# Remove the spring loading delay for directories
+defaults write NSGlobalDomain com.apple.springing.delay -float 0
 
 # Keep folders on top when sorting by name
 defaults write com.apple.finder _FXSortFoldersFirst -bool true
@@ -132,6 +140,9 @@ defaults write com.apple.finder ShowPathbar -bool true
 # Show status bar in Finder
 defaults write com.apple.finder ShowStatusBar -bool true
 
+# Remove tags from sidebar
+sudo defaults write com.apple.finder ShowRecentTags -bool false
+
 ###############################################################################
 # Dock, Dashboard, and hot corners                                            #
 ###############################################################################
@@ -145,11 +156,16 @@ defaults write com.apple.dock tilesize -int 38
 # Change minimize/maximize window effect
 defaults write com.apple.dock mineffect -string "scale"
 
-# Wipe all (default) app icons from the Dock
-defaults write com.apple.dock persistent-apps -array
-
 # Automatically hide and show the Dock
 defaults write com.apple.dock autohide -bool true
+
+# Remove the auto-hiding Dock delay
+defaults write com.apple.dock autohide-delay -float 0
+# Remove the animation when hiding/showing the Dock
+defaults write com.apple.dock autohide-time-modifier -float 0
+
+# Enable spring loading for all Dock items
+defaults write com.apple.dock enable-spring-load-actions-on-all-items -bool true
 
 # Don’t show recent applications in Dock
 defaults write com.apple.dock show-recents -bool false
@@ -168,15 +184,34 @@ defaults write com.apple.dock wvous-br-corner -int 0
 defaults -currentHost write com.apple.ImageCapture disableHotPlug -bool true
 
 ###############################################################################
-# Spotlight reset                                                             #
+# Activity Monitor                                                            #
 ###############################################################################
 
-# Fore re-index
-# Erase all indexes and wait until the rebuilding process ends,
-# for now there is no way to get status of indexing process, it takes around 3 minutes to accomplish
-sudo mdutil -E /
-sudo log stream | grep -q -E 'mds.*Released.*BackgroundTask' || true
-echo "Indexing completed"
+# Show all processes in Activity Monitor
+defaults write com.apple.ActivityMonitor ShowCategory -int 0
+
+# Sort Activity Monitor results by CPU usage
+defaults write com.apple.ActivityMonitor SortColumn -string "CPUUsage"
+defaults write com.apple.ActivityMonitor SortDirection -int 0
+
+###############################################################################
+# Mac App Store                                                               #
+###############################################################################
+
+# Enable the automatic update check
+defaults write com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
+
+# Check for software updates daily, not just once per week
+defaults write com.apple.SoftwareUpdate ScheduleFrequency -int 1
+
+# Download newly available updates in background
+defaults write com.apple.SoftwareUpdate AutomaticDownload -int 1
+
+# Install System data files & security updates
+defaults write com.apple.SoftwareUpdate CriticalUpdateInstall -int 1
+
+# Turn on app auto-update
+defaults write com.apple.commerce AutoUpdate -bool true
 
 ###############################################################################
 # Kill affected applications                                                  #
@@ -187,7 +222,6 @@ for app in "Activity Monitor" \
     "Finder" \
     "Messages" \
     "Photos" \
-    "Safari" \
     "SystemUIServer"; do
     killall "${app}" &> /dev/null
 done

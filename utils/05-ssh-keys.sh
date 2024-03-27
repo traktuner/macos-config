@@ -4,7 +4,7 @@ echo "=> SSH Keyfiles"
 
 smb_path="172.16.10.100/tresor/ssh"
 mount_path="/Volumes/ssh"
-target_folder="$HOME/.ssh"
+target_folder="$HOME/.ssh/"
 
 if [ ! -d "$target_folder" ]; then
     echo "Create target folder..."
