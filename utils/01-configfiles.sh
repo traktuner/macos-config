@@ -12,7 +12,7 @@ Host github.com
 	Hostname ssh.github.com
 	Port 443
 "
-create_config ".ssh" "$HOME" "$config_content"
+add_config ".ssh" "$HOME" "$config_content"
 
 # .bash_profile
 config_content="
@@ -22,7 +22,7 @@ if [ -f ~/.bashrc ]; then
     . ~/.bashrc
 fi
 "
-create_config ".bash_profile" "$HOME" "$config_content"
+add_config ".bash_profile" "$HOME" "$config_content"
 
 # .bashrc
 config_content="
@@ -37,6 +37,6 @@ if [ -f /etc/bashrc ]; then
     . /etc/bashrc
 fi
 "
-create_config ".bashrc" "$HOME" "$config_content"
+add_config ".bashrc" "$HOME" "$config_content"
 
 print_success "Completed..."
