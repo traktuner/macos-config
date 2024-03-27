@@ -52,7 +52,7 @@ symlink_from_to() {
   if [ ! -e "$TO" ]; then
     ln -fs "$FROM" "$TO"
     print_success "Successfully symlinked"
-  elifw [ "$(readlink "$TO")" == "$FROM" ]; then
+  elif [ "$(readlink "$TO")" == "$FROM" ]; then
     print_success "Already symlinked"
   else
     ask_for_confirmation "$(basename $TO) already exists, overwrite it?"
