@@ -24,6 +24,7 @@ cask 'steam'
 cask 'spotify'
 cask 'little-snitch'
 cask 'keepingyouawake'
+cask 'utm'
 # Apps for Work
 cask 'cisco-jabber'
 cask 'webex'
