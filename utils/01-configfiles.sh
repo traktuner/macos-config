@@ -8,6 +8,9 @@ Host udmp
 	HostkeyAlgorithms +ssh-rsa
 	PubkeyAcceptedAlgorithms +ssh-rsa
 
+Host anakin
+	HostName 172.16.10.100
+
 Host github.com
 	Hostname ssh.github.com
 	Port 443
