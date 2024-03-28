@@ -1,38 +1,38 @@
 # Sources
-tap 'buo/cask-upgrade'
+tap 'buo/cask-upgrade', retry: 5
 
 # Utilities
-brew 'mas'
-brew 'git'
-brew 'tailscale'
-brew 'speedtest-cli'
+brew 'mas', retry: 5
+brew 'git', retry: 5
+brew 'tailscale', retry: 5
+brew 'speedtest-cli', retry: 5
 
 # Apps from "Web"
-cask 'proton-drive'
-cask 'warp'
-cask 'alfred'
-cask 'firefox'
-cask 'visual-studio-code'
-cask 'vlc'
-cask 'crossover'
-cask 'beeper'
-cask 'protonvpn'
-cask 'cryptomator'
-cask 'appcleaner'
-cask 'steam'
-cask 'spotify'
-cask 'little-snitch'
-cask 'keepingyouawake'
-cask 'utm'
-cask 'orion'
-cask 'shottr'
-cask 'hiddenbar'
-cask 'brightintosh'
-cask 'onyx'
+cask 'proton-drive', retry: 5
+cask 'warp', retry: 5
+cask 'alfred', retry: 5
+cask 'firefox', retry: 5
+cask 'visual-studio-code', retry: 5
+cask 'vlc', retry: 5
+cask 'crossover', retry: 5
+cask 'beeper', retry: 5
+cask 'protonvpn', retry: 5
+cask 'cryptomator', retry: 5
+cask 'appcleaner', retry: 5
+cask 'steam', retry: 5
+cask 'spotify', retry: 5
+cask 'little-snitch', retry: 5
+cask 'keepingyouawake', retry: 5
+cask 'utm', retry: 5
+cask 'orion', retry: 5
+cask 'shottr', retry: 5
+cask 'hiddenbar', retry: 5
+cask 'brightintosh', retry: 5
+cask 'onyx', retry: 5
 # Apps for Work
-cask 'cisco-jabber'
-cask 'webex'
-cask 'citrix-workspace'
+cask 'cisco-jabber', retry: 5
+cask 'webex', retry: 5
+cask 'citrix-workspace', retry: 5
 
 # Apps from "App Store"
 mas 'Logic Pro', id: 634148309
