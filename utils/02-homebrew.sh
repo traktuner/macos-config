@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
 echo "=> Homebrew"
 
@@ -8,9 +8,12 @@ if [[ ! -f $(which brew) ]]
 then
   print_info "Installing..."
 
-  /bin/zsh -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  brew bundle --file="$ROOT_DIR/core/Brewfile"
-  brew cleanup && brew upgrade && brew update && brew doctor
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  /opt/homebrew/bin/brew bundle --file="$ROOT_DIR/core/Brewfile"
+  /opt/homebrew/bin/brew cleanup && \
+  /opt/homebrew/bin/brew upgrade && \
+  /opt/homebrew/bin/brew update && \
+  /opt/homebrew/bin/brew doctor
 
   print_success "Completed..."
 else
