@@ -6,6 +6,7 @@ brew 'mas', retry: 5
 brew 'git', retry: 5
 brew 'tailscale', retry: 5
 brew 'speedtest-cli', retry: 5
+brew 'mackup', retry: 5
 
 # Apps from "Web"
 cask 'proton-drive', retry: 5
