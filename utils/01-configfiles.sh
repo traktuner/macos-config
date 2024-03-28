@@ -2,6 +2,15 @@
 
 echo "=> Config files"
 
+# SSH config
+
+ssh_folder="$HOME/.ssh"
+
+if [ ! -d "$ssh_folder" ]; then
+    echo "Create target folder..."
+    mkdir -p -m700 "$ssh_folder"
+fi
+
 config_content="
 Host udmp
 	HostName 192.168.0.1
@@ -15,7 +24,7 @@ Host github.com
 	Hostname ssh.github.com
 	Port 443
 "
-add_config ".ssh" "$HOME" "$config_content"
+add_config "config" "$ssh_folder" "$config_content"
 
 # .zshenv
 config_content="
@@ -31,7 +40,6 @@ add_config ".zshenv" "$HOME" "$config_content"
 config_content="
 # .zshrc
 # User specific aliases and functions
-. .alias
 alias python='python3'
 alias ll='ls -la'
 eval $(/opt/homebrew/bin/brew shellenv)

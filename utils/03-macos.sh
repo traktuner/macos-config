@@ -43,6 +43,9 @@ defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
 # Don't offer new volumes as Time Machine destination
 defaults write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true
 
+# Disable annoying disk warning when ejecting drives
+defaults write com.apple.DiskArbitration.diskarbitrationd DADisableEjectNotification -bool YES
+
 ###############################################################################
 # Trackpad, mouse, keyboard, Bluetooth accessories, and input                 #
 ###############################################################################
@@ -222,6 +225,7 @@ for app in "Activity Monitor" \
     "Finder" \
     "Messages" \
     "Photos" \
+    "diskarbitrationd" \
     "SystemUIServer"; do
     killall "${app}" &> /dev/null
 done

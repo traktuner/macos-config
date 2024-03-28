@@ -4,12 +4,7 @@ echo "=> SSH Keyfiles"
 
 smb_path="172.16.10.100/tresor/ssh"
 mount_path="/Volumes/ssh"
-target_folder="~/.ssh"
-
-if [ ! -d "$target_folder" ]; then
-    echo "Create target folder..."
-    mkdir -p -m700 "$target_folder"
-fi
+target_folder="$HOME/.ssh"
 
 read -p "Please enter your smb username: " smb_user
 read -s -p "Please enter your smb password: " smb_password
