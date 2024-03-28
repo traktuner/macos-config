@@ -18,7 +18,7 @@ open "smb://$smb_user:$smb_password@$smb_path"
 open_result=$?
 sleep 10
 
-ls -la /Volumes/ssh
+ls -la $mount_path
 
 if [ $open_result -eq 0 ]; then
     cp $mount_path/* $target_folder
