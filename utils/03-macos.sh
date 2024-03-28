@@ -222,6 +222,13 @@ defaults write com.apple.commerce AutoUpdate -bool true
 ###############################################################################
 # Kill affected applications                                                  #
 ###############################################################################
+
+# Force a Spotlight reindex but don't wait for completion
+sudo mdutil -E /
+
+###############################################################################
+# Kill affected applications                                                  #
+###############################################################################
 for app in "Activity Monitor" \
     "cfprefsd" \
     "Dock" \
