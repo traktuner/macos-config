@@ -27,6 +27,10 @@ export -f get_arch
 
 ask_for_sudo
 
+print_info "Get permissions for script upfront ..."
+
+ask_for_permissions
+
 while true; do
   ask_for_confirmation "Warning: This shell will overwrite your current workspace setup. Proceed?"
   case $REPLY in
