@@ -28,21 +28,6 @@ ask_for_sudo() {
   done 2> /dev/null &
 }
 
-ask_for_permissions() {
-  # Permissions for System Events
-  osascript -e 'tell application "System Events" to keystroke "a"'
-  osascript_result=$?
-    if [ $osascript_result -ne 0 ]; then
-        echo "Error: Unable to obtain permission for System Events."
-    fi
-  # Permissions for SMB
-  open "smb://"
-  open_result=$?
-    if [ $open_result -ne 0 ]; then
-        echo "Error: Unable to obtain permission for mounting volumes."
-    fi
-}
-
 print_info() {
   # Print output in blue
   printf "\n\e[0;34m 👊  $1\e[0m\n"
