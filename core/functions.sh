@@ -30,7 +30,7 @@ ask_for_sudo() {
 
 ask_for_permissions() {
   # Permissions for System Events
-  osascript -e 'tell application "Finder" to activate'
+  osascript -e 'tell application "System Events" to keystroke "a"'
   osascript_result=$?
     if [ $osascript_result -ne 0 ]; then
         echo "Error: Unable to obtain permission for System Events."
