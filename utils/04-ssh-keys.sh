@@ -16,10 +16,20 @@ sleep 10
 ls -la $mount_path
 
 if [ $open_result -eq 0 ]; then
-    cp $mount_path/* $target_folder
-    print_success "Completed..."
+    # Copy files from the mounted volume
+    cp "$mount_path"/* "$target_folder"
+    
+    # Unmount the volume
+    diskutil unmount "$mount_path"
+    unmount_result=$?
+    
+    if [ $unmount_result -eq 0 ]; then
+        echo "Unmounted successfully."
+    else
+        echo "Unmounting failed."
+    fi
 else
-    print_error "smb mount failed..."
+    echo "SMB mount failed..."
 fi
 
 # Delete password
