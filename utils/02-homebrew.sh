@@ -12,6 +12,7 @@ then
   /opt/homebrew/bin/brew bundle --file="$ROOT_DIR/core/Brewfile"
   /opt/homebrew/bin/brew cleanup && \
   /opt/homebrew/bin/brew upgrade && \
+  /opt/homebrew/bin/brew upgrade --cask && \
   /opt/homebrew/bin/brew update && \
   /opt/homebrew/bin/brew doctor
 
