@@ -23,6 +23,7 @@ export -f insert_to_file_after_line_number
 export -f uncomment_line
 export -f prepend_string_to_file
 export -f add_config
+export -f get_arch
 
 ask_for_sudo
 

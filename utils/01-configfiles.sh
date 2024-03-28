@@ -19,27 +19,28 @@ add_config ".ssh" "$HOME" "$config_content"
 
 # .bash_profile
 config_content="
-# .bash_profile
+# .zshenv
 # Get the aliases and functions
-if [ -f ~/.bashrc ]; then
-    . ~/.bashrc
+if [ -f ~/.zshrc ]; then
+    . ~/.zshrc
 fi
 "
-add_config ".bash_profile" "$HOME" "$config_content"
+add_config ".zshenv" "$HOME" "$config_content"
 
-# .bashrc
+# .zshrc
 config_content="
-# .bashrc
+# .zshrc
 # User specific aliases and functions
 . .alias
 alias python='python3'
 alias ll='ls -la'
+eval $(/opt/homebrew/bin/brew shellenv)
 
 # Source global definitions
-if [ -f /etc/bashrc ]; then
-    . /etc/bashrc
+if [ -f /etc/zshrc ]; then
+    . /etc/zshrc
 fi
 "
-add_config ".bashrc" "$HOME" "$config_content"
+add_config ".zshrc" "$HOME" "$config_content"
 
 print_success "Completed..."

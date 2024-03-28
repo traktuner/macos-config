@@ -145,3 +145,12 @@ add_config() {
         echo "Config file created successfully."
     fi
 }
+
+get_arch() {
+    arch=$(arch)
+    if [[ $arch == "arm64" ]]; then
+        echo "arm64"
+    else
+        echo "x64"
+    fi
+}
