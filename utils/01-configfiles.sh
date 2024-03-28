@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 
 echo "=> Config files"
 
@@ -17,7 +17,7 @@ Host github.com
 "
 add_config ".ssh" "$HOME" "$config_content"
 
-# .bash_profile
+# .zshenv
 config_content="
 # .zshenv
 # Get the aliases and functions
