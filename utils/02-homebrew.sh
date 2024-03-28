@@ -15,6 +15,7 @@ then
   /opt/homebrew/bin/brew upgrade --cask && \
   /opt/homebrew/bin/brew update && \
   /opt/homebrew/bin/brew doctor
+  eval $(/opt/homebrew/bin/brew shellenv)
 
   print_success "Completed..."
 else
