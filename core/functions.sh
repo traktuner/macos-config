@@ -1,3 +1,5 @@
+#!/usr/bin/env zsh
+
 answer_is_yes() {
   [[ "$REPLY" =~ ^[Yy]$ ]] && return 0 || return 1
 }
