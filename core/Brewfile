@@ -13,6 +13,7 @@ cask 'proton-drive', retry: 5
 cask 'warp', retry: 5
 cask 'alfred', retry: 5
 cask 'firefox', retry: 5
+cask 'chromium', retry: 5, args: { no_quarantine: true }
 cask 'visual-studio-code', retry: 5
 cask 'vlc', retry: 5
 cask 'crossover', retry: 5
@@ -25,7 +26,6 @@ cask 'spotify', retry: 5
 cask 'little-snitch', retry: 5
 cask 'keepingyouawake', retry: 5
 cask 'utm', retry: 5
-cask 'orion', retry: 5
 cask 'shottr', retry: 5
 cask 'hiddenbar', retry: 5
 cask 'brightintosh', retry: 5
