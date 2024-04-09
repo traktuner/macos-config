@@ -2,8 +2,6 @@
 
 echo "=> Homebrew"
 
-arch=$(get_arch)
-
 if [[ ! -f $(which brew) ]]
 then
   print_info "Installing..."
