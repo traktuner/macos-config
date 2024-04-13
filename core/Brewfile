@@ -30,6 +30,7 @@ cask 'shottr', retry: 5
 cask 'hiddenbar', retry: 5
 cask 'brightintosh', retry: 5
 cask 'onyx', retry: 5
+cask 'sevenzip', retry: 5
 cask 'affinity-photo', retry: 5
 cask 'affinity-designer', retry: 5
 cask 'affinity-publisher', retry: 5
@@ -42,3 +43,5 @@ cask 'citrix-workspace', retry: 5
 # Apps from "App Store"
 mas 'Logic Pro', id: 634148309
 mas 'Pixelmator Pro', id: 1289583905
+mas 'Vivid', id: 6443470555
+mas 'Dropover', id: 1355679052
