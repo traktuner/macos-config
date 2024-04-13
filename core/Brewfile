@@ -28,9 +28,11 @@ cask 'keepingyouawake', retry: 5
 cask 'utm', retry: 5
 cask 'shottr', retry: 5
 cask 'hiddenbar', retry: 5
-cask 'brightintosh', retry: 5
 cask 'onyx', retry: 5
 cask 'sevenzip', retry: 5
+cask 'daisydisk', retry: 5
+cask 'ffmpeg', retry: 5
+cask 'handbrake', retry: 5
 cask 'affinity-photo', retry: 5
 cask 'affinity-designer', retry: 5
 cask 'affinity-publisher', retry: 5
