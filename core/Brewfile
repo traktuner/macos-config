@@ -15,12 +15,13 @@ cask 'proton-drive', retry: 5
 cask 'warp', retry: 5
 cask 'alfred', retry: 5
 cask 'firefox', retry: 5
+cask 'protonvpn', retry: 5
+cask 'standard-notes', retry: 5
 cask 'chromium', retry: 5, args: { no_quarantine: true }
 cask 'visual-studio-code', retry: 5
 cask 'vlc', retry: 5
 cask 'crossover', retry: 5
 cask 'beeper', retry: 5
-cask 'protonvpn', retry: 5
 cask 'cryptomator', retry: 5
 cask 'appcleaner', retry: 5
 cask 'steam', retry: 5
