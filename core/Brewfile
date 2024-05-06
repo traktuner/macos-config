@@ -48,3 +48,9 @@ mas 'Logic Pro', id: 634148309
 mas 'Pixelmator Pro', id: 1289583905
 mas 'Vivid', id: 6443470555
 mas 'Dropover', id: 1355679052
+mas 'The Unarchiver ', id: 425424353
+# Safari extensions
+mas '1Blocker', id: 1365531024
+mas 'StopTheMadness Pro ', id: 6471380298
+mas 'Noir ', id: 1592917505
+mas 'Wayback Machine', id: 1472432422
