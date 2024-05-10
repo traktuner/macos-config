@@ -28,7 +28,6 @@ cask 'steam', retry: 5
 cask 'spotify', retry: 5
 cask 'little-snitch', retry: 5
 cask 'keepingyouawake', retry: 5
-cask 'utm', retry: 5
 cask 'shottr', retry: 5
 cask 'hiddenbar', retry: 5
 cask 'onyx', retry: 5
