@@ -37,6 +37,7 @@ cask 'handbrake', retry: 5
 cask 'affinity-photo', retry: 5
 cask 'affinity-designer', retry: 5
 cask 'affinity-publisher', retry: 5
+cask 'vmware-fusion', retry: 5
 # Apps for Work
 cask 'microsoft-office', retry: 5
 cask 'cisco-jabber', retry: 5
