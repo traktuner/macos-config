@@ -47,7 +47,7 @@ defaults write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true
 defaults write com.apple.DiskArbitration.diskarbitrationd DADisableEjectNotification -bool YES
 
 # Enable dark mode
-osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to not dark mode'
+# osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to not dark mode'
 
 ###############################################################################
 # Trackpad, mouse, keyboard, Bluetooth accessories, and input                 #
