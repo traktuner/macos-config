@@ -11,11 +11,12 @@ brew 'ffmpeg', retry: 5
 brew 'sevenzip', retry: 5
 
 # Apps from "Web"
-cask 'proton-drive', retry: 5
 cask 'warp', retry: 5
 cask 'alfred', retry: 5
 cask 'firefox', retry: 5
 cask 'protonvpn', retry: 5
+cask 'proton-drive', retry: 5
+cask 'proton-pass', retry: 5
 cask 'standard-notes', retry: 5
 cask 'chromium', retry: 5, args: { no_quarantine: true }
 cask 'visual-studio-code', retry: 5
