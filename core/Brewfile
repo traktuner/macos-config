@@ -1,6 +1,6 @@
 # Sources
 tap 'buo/cask-upgrade'
-tap 'traktuner/homebrew-traktuner'
+tap 'traktuner/traktuner'
 
 # Utilities
 brew 'mas', retry: 5
