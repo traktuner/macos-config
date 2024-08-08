@@ -3,6 +3,14 @@
 echo "=> macOS system config"
 
 ###############################################################################
+# Analytics                                                                   #
+###############################################################################
+
+# Disable sharing analytics with Apple and developers
+defaults write /Library/Application\ Support/CrashReporter/DiagnosticMessagesHistory.plist AutoSubmit -boolean false
+defaults write /Library/Application\ Support/CrashReporter/DiagnosticMessagesHistory.plist ThirdPartyDataSubmit -boolean false
+
+###############################################################################
 # General UI/UX                                                               #
 ###############################################################################
 
@@ -49,6 +57,9 @@ defaults write com.apple.DiskArbitration.diskarbitrationd DADisableEjectNotifica
 # Enable dark mode
 # osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to not dark mode'
 
+# Disable guest login
+defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -bool FALSE
+
 ###############################################################################
 # Trackpad, mouse, keyboard, Bluetooth accessories, and input                 #
 ###############################################################################
@@ -76,13 +87,13 @@ defaults write com.apple.screensaver askForPasswordDelay -int 0
 defaults write com.apple.screencapture location -string "${HOME}/Desktop"
 
 # Save screenshots in PNG format (other options: BMP, GIF, JPG, PDF, TIFF)
-defaults write com.apple.screencapture type -string "png"
+#defaults write com.apple.screencapture type -string "png"
 
 # Disable shadow in screenshots
 defaults write com.apple.screencapture disable-shadow -bool true
 
 # Disable Ambient Light Sensor
-defaults write /Library/Preferences/com.apple.iokit.AmbientLightSensor "Automatic Display Enabled" -bool false
+#defaults write /Library/Preferences/com.apple.iokit.AmbientLightSensor "Automatic Display Enabled" -bool false
 
 # Enable subpixel font rendering on non-Apple LCDs
 # Reference: https://github.com/kevinSuttle/macOS-Defaults/issues/17#issuecomment-266633501
