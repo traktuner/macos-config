@@ -20,6 +20,7 @@ cask 'proton-drive', retry: 5
 cask 'proton-mail', retry: 5
 cask 'proton-pass', retry: 5
 cask 'standard-notes', retry: 5
+cask 'synology-drive', retry: 5
 cask 'chromium', retry: 5, args: { no_quarantine: true }
 cask 'visual-studio-code', retry: 5
 cask 'vlc', retry: 5
