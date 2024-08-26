@@ -33,9 +33,6 @@ cask 'hiddenbar', retry: 5
 cask 'onyx', retry: 5
 cask 'daisydisk', retry: 5
 cask 'handbrake', retry: 5
-cask 'affinity-photo', retry: 5
-cask 'affinity-designer', retry: 5
-cask 'affinity-publisher', retry: 5
 cask 'vmware-fusion', retry: 5
 cask 'mist', retry: 5
 cask 'diffusionbee', retry: 5
@@ -59,6 +56,9 @@ mas 'Microsoft Word', id: 462054704
 mas 'Microsoft Excel', id: 462058435
 mas 'Speedtest', id: 1153157709
 mas 'Tailscale', id: 1475387142
+mas 'Affinity Photo 2', id: 1616822987
+mas 'Affinity Designer 2', id: 1616831348
+mas 'Affinity Publisher 2', id: 1606941598
 # Extensions
 mas '1Blocker', id: 1365531024
 mas 'StopTheMadness Pro ', id: 6471380298
