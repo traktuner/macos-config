@@ -5,23 +5,19 @@ tap 'traktuner/traktuner'
 # Utilities
 brew 'mas', retry: 5
 brew 'git', retry: 5
-brew 'tailscale', retry: 5
-brew 'speedtest-cli', retry: 5
 brew 'mackup', retry: 5
-brew 'ffmpeg', retry: 5
-brew 'sevenzip', retry: 5
 
 # Apps from "Web"
 cask 'warp', retry: 5
 cask 'alfred', retry: 5
 cask 'firefox', retry: 5
+cask 'chromium', retry: 5, args: { no_quarantine: true }
 cask 'protonvpn', retry: 5
-cask 'proton-drive', retry: 5
+cask 'proton-mail-bridge', retry: 5
 cask 'proton-mail', retry: 5
 cask 'proton-pass', retry: 5
 cask 'standard-notes', retry: 5
 cask 'synology-drive', retry: 5
-cask 'chromium', retry: 5, args: { no_quarantine: true }
 cask 'visual-studio-code', retry: 5
 cask 'vlc', retry: 5
 cask 'crossover', retry: 5
@@ -41,21 +37,28 @@ cask 'affinity-photo', retry: 5
 cask 'affinity-designer', retry: 5
 cask 'affinity-publisher', retry: 5
 cask 'vmware-fusion', retry: 5
+cask 'mist', retry: 5
+cask 'diffusionbee', retry: 5
+cask 'freetube', retry: 5
 cask 'microsoft-defender', retry: 5
 # Apps for Work
 cask 'cisco-jabber', retry: 5
 cask 'webex', retry: 5
 cask 'citrix-workspace', retry: 5
-cask 'microsoft-office', retry: 5
 
 # Apps from "App Store"
 mas 'Logic Pro', id: 634148309
 mas 'Pixelmator Pro', id: 1289583905
 mas 'Vivid', id: 6443470555
-mas 'Dropover', id: 1355679052
 mas 'The Unarchiver', id: 425424353
 mas 'FreeChat', id: 6458534902
 mas 'MenuBar Weather', id: 1662381447
+mas 'CEWE Fotoservice', id: 1446275768
+mas 'HP Smart', id: 1474276998
+mas 'Microsoft Word', id: 462054704
+mas 'Microsoft Excel', id: 462058435
+mas 'Speedtest', id: 1153157709
+mas 'Tailscale', id: 1475387142
 # Extensions
 mas '1Blocker', id: 1365531024
 mas 'StopTheMadness Pro ', id: 6471380298
