@@ -13,7 +13,7 @@ cask 'alfred', retry: 5
 cask 'firefox', retry: 5
 cask 'chromium', retry: 5, args: { no_quarantine: true }
 cask 'protonvpn', retry: 5
-cask 'proton-mail-bridge', retry: 5
+cask 'protonmail-bridge', retry: 5
 cask 'proton-mail', retry: 5
 cask 'proton-pass', retry: 5
 cask 'standard-notes', retry: 5
