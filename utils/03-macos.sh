@@ -234,17 +234,17 @@ defaults write com.apple.SoftwareUpdate CriticalUpdateInstall -int 1
 defaults write com.apple.commerce AutoUpdate -bool true
 
 ###############################################################################
+# Set default wallpaper                                                       #
+###############################################################################
+
+osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.*\" as POSIX file"
+
+###############################################################################
 # Spotlight                                                                   #
 ###############################################################################
 
 # Force a Spotlight reindex but don't wait for completion
 sudo mdutil -E /
-
-###############################################################################
-# Set default wallpaper                                                       #
-###############################################################################
-
-osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.*\" as POSIX file"
 
 ###############################################################################
 # Kill affected applications                                                  #
