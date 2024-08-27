@@ -11,7 +11,7 @@ brew 'mackup', retry: 5
 cask 'warp', retry: 5
 cask 'alfred', retry: 5
 cask 'firefox', retry: 5
-cask 'chromium', retry: 5, args: { no_quarantine: true }
+cask 'eloston-chromium', retry: 5, args: { no_quarantine: true }
 cask 'protonvpn', retry: 5
 cask 'protonmail-bridge', retry: 5
 cask 'proton-mail', retry: 5
