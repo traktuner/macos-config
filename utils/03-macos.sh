@@ -15,20 +15,13 @@ defaults write /Library/Application\ Support/CrashReporter/DiagnosticMessagesHis
 ###############################################################################
 
 # Disable the sound effects on boot
-sudo nvram SystemAudioVolume=" "
+sudo sudo nvram StartupMute=%01
 
 # Save to disk (not to iCloud) by default
 defaults write NSGlobalDomain NSDocumentSaveNewDocumentsToCloud -bool false
 
 # Automatically quit printer app once the print jobs complete
 defaults write com.apple.print.PrintingPrefs "Quit When Finished" -bool true
-
-# Disable the “Are you sure you want to open this application?” dialog
-defaults write com.apple.LaunchServices LSQuarantine -bool false
-
-# Set highlight color to custom one
-# https://github.com/mathiasbynens/dotfiles/issues/481
-defaults write NSGlobalDomain AppleHighlightColor -string "0.768289 0.831748 0.823031"
 
 # Scrollbars
 defaults write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling"
@@ -54,23 +47,12 @@ defaults write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true
 # Disable annoying disk warning when ejecting drives
 defaults write com.apple.DiskArbitration.diskarbitrationd DADisableEjectNotification -bool YES
 
-# Enable dark mode
-# osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to not dark mode'
-
 # Disable guest login
 defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -bool FALSE
 
 ###############################################################################
 # Trackpad, mouse, keyboard, Bluetooth accessories, and input                 #
 ###############################################################################
-
-# Trackpad: enable tap to click for this user and for the login screen
-defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true
-defaults -currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1
-defaults write NSGlobalDomain com.apple.mouse.tapBehavior -int 1
-
-# Increase sound quality for Bluetooth headphones/headsets
-defaults write com.apple.BluetoothAudioAgent "Apple Bitpool Min (editable)" -int 40
 
 # Disable press-and-hold for keys in favor of key repeat
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
@@ -86,21 +68,8 @@ defaults write com.apple.screensaver askForPasswordDelay -int 0
 # Save screenshots to the desktop
 defaults write com.apple.screencapture location -string "${HOME}/Desktop"
 
-# Save screenshots in PNG format (other options: BMP, GIF, JPG, PDF, TIFF)
-#defaults write com.apple.screencapture type -string "png"
-
 # Disable shadow in screenshots
 defaults write com.apple.screencapture disable-shadow -bool true
-
-# Disable Ambient Light Sensor
-#defaults write /Library/Preferences/com.apple.iokit.AmbientLightSensor "Automatic Display Enabled" -bool false
-
-# Enable subpixel font rendering on non-Apple LCDs
-# Reference: https://github.com/kevinSuttle/macOS-Defaults/issues/17#issuecomment-266633501
-#defaults write NSGlobalDomain AppleFontSmoothing -int 1
-
-# Enable HiDPI display modes (requires restart)
-#sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true
 
 
 ###############################################################################
@@ -171,7 +140,7 @@ sudo defaults write com.apple.finder ShowRecentTags -bool false
 defaults write com.apple.dock "orientation" -string "left"
 
 # Set the icon size of Dock items
-defaults write com.apple.dock tilesize -int 38
+defaults write com.apple.dock tilesize -int 30
 
 # Change minimize/maximize window effect
 defaults write com.apple.dock mineffect -string "scale"
