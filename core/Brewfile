@@ -9,11 +9,9 @@ brew 'mackup', retry: 5
 
 # Apps from "Web"
 cask 'warp', retry: 5
-cask 'alfred', retry: 5
 cask 'firefox', retry: 5
 cask 'eloston-chromium', retry: 5, args: { no_quarantine: true }
 cask 'protonvpn', retry: 5
-cask 'protonmail-bridge', retry: 5
 cask 'proton-mail', retry: 5
 cask 'proton-pass', retry: 5
 cask 'standard-notes', retry: 5
@@ -64,5 +62,4 @@ mas '1Blocker', id: 1365531024
 mas 'StopTheMadness Pro ', id: 6471380298
 mas 'Noir ', id: 1592917505
 mas 'Wayback Machine', id: 1472432422
-mas 'MailTrackerBlocker', id: 6450760473
 mas 'Proton Pass for Safari', id: 6502835663
