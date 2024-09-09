@@ -35,6 +35,7 @@ cask 'vmware-fusion', retry: 5
 cask 'mist', retry: 5
 cask 'diffusionbee', retry: 5
 cask 'freetube', retry: 5
+cask 'crashplan', retry: 5
 cask 'microsoft-defender', retry: 5
 # Apps for Work
 cask 'cisco-jabber', retry: 5
