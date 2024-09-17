@@ -24,7 +24,6 @@ cask 'cryptomator', retry: 5
 cask 'appcleaner', retry: 5
 cask 'steam', retry: 5
 cask 'spotify', retry: 5
-cask 'little-snitch', retry: 5
 cask 'keepingyouawake', retry: 5
 cask 'shottr', retry: 5
 cask 'hiddenbar', retry: 5
@@ -37,6 +36,7 @@ cask 'diffusionbee', retry: 5
 cask 'freetube', retry: 5
 cask 'crashplan', retry: 5
 cask 'microsoft-defender', retry: 5
+cask 'little-snitch', retry: 5
 # Apps for Work
 cask 'cisco-jabber', retry: 5
 cask 'webex', retry: 5
