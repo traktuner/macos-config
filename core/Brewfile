@@ -38,6 +38,10 @@ cask 'crashplan', retry: 5
 cask 'microsoft-defender', retry: 5
 cask 'little-snitch', retry: 5
 # Apps for Work
+cask 'microsoft-word', retry: 5
+cask 'microsoft-excel', retry: 5
+cask 'microsoft-teams', retry: 5
+cask 'cisco-jabber', retry: 5
 cask 'cisco-jabber', retry: 5
 cask 'webex', retry: 5
 cask 'citrix-workspace', retry: 5
@@ -51,8 +55,6 @@ mas 'FreeChat', id: 6458534902
 mas 'MenuBar Weather', id: 1662381447
 mas 'CEWE Fotoservice', id: 1446275768
 mas 'HP Smart', id: 1474276998
-mas 'Microsoft Word', id: 462054704
-mas 'Microsoft Excel', id: 462058435
 mas 'Speedtest', id: 1153157709
 mas 'Tailscale', id: 1475387142
 mas 'Affinity Photo 2', id: 1616822987
