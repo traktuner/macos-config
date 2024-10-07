@@ -42,7 +42,6 @@ cask 'microsoft-word', retry: 5
 cask 'microsoft-excel', retry: 5
 cask 'microsoft-teams', retry: 5
 cask 'cisco-jabber', retry: 5
-cask 'cisco-jabber', retry: 5
 cask 'webex', retry: 5
 cask 'citrix-workspace', retry: 5
 
