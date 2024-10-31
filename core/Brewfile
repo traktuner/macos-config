@@ -26,7 +26,7 @@ cask 'steam', retry: 5
 cask 'spotify', retry: 5
 cask 'keepingyouawake', retry: 5
 cask 'shottr', retry: 5
-cask 'hiddenbar', retry: 5
+cask 'bartender', retry: 5
 cask 'onyx', retry: 5
 cask 'daisydisk', retry: 5
 cask 'handbrake', retry: 5
