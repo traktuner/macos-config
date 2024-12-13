@@ -1,5 +1,4 @@
 # Sources
-tap 'buo/cask-upgrade'
 tap 'traktuner/traktuner'
 
 # Utilities
@@ -37,6 +36,7 @@ cask 'freetube', retry: 5
 cask 'crashplan', retry: 5
 cask 'microsoft-defender', retry: 5
 cask 'little-snitch', retry: 5
+cask 'network-share-mounter', retry: 5
 # Apps for Work
 cask 'microsoft-word', retry: 5
 cask 'microsoft-excel', retry: 5
