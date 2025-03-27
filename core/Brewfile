@@ -29,7 +29,7 @@ cask 'bartender', retry: 5
 cask 'onyx', retry: 5
 cask 'daisydisk', retry: 5
 cask 'handbrake', retry: 5
-cask 'vmware-fusion', retry: 5
+cask 'utm', retry: 5
 cask 'mist', retry: 5
 cask 'diffusionbee', retry: 5
 cask 'freetube', retry: 5
