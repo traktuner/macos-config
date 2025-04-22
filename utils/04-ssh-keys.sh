@@ -1,36 +1,20 @@
 #!/usr/bin/env bash
+set -euo pipefail
+print_info "SSH Keyfiles"
 
-echo "=> SSH Keyfiles"
+SMB_SERVER="//172.16.10.100/tresor/ssh"
+MOUNT_POINT="/Volumes/ssh"
+TARGET="$HOME/.ssh"
+mkdir -p "$TARGET"
 
-smb_path="172.16.10.100/tresor/ssh"
-mount_path="/Volumes/ssh"
-target_folder="$HOME/.ssh"
+read -p "SMB‑User: " SMB_USER
+read -s -p "SMB‑Pass: " SMB_PASS; echo
 
-read -p "Please enter your smb username: " smb_user
-read -s -p "Please enter your smb password: " smb_password
+# mount_smbfs ist ab macOS dabei
+printf "%s\n" "$SMB_PASS" | mount_smbfs "//$SMB_USER@$SMB_SERVER" "$MOUNT_POINT" \
+  || { print_error "SMB mount failed"; exit 1; }
 
-open "smb://$smb_user:$smb_password@$smb_path"
-open_result=$?
-sleep 10
+cp "$MOUNT_POINT"/* "$TARGET" && print_success "SSH keys copied"
+umount "$MOUNT_POINT" && print_success "Unmounted" || print_error "Unmount failed"
 
-ls -la $mount_path
-
-if [ $open_result -eq 0 ]; then
-    # Copy files from the mounted volume
-    cp "$mount_path"/* "$target_folder"
-    
-    # Unmount the volume
-    diskutil unmount "$mount_path"
-    unmount_result=$?
-    
-    if [ $unmount_result -eq 0 ]; then
-        echo "Unmounted successfully."
-    else
-        echo "Unmounting failed."
-    fi
-else
-    echo "SMB mount failed..."
-fi
-
-# Delete password
-unset smb_password
+unset SMB_PASS

@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
+set -euo pipefail
+print_info "macOS updates"
 
-echo "=> macOS system updates"
-
-echo "Checking for macOS updates, this might take a while, please be patient..."
-/usr/sbin/softwareupdate --install --all
+ask_for_confirmation "Install all available updates now?"
+if answer_is_yes; then
+  /usr/sbin/softwareupdate --install --all \
+    && print_success "Updates installed" \
+    || print_error "Update failed"
+else
+  print_info "Skipped updates"
+fi

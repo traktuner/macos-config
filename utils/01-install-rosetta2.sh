@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
+set -euo pipefail
+print_info "Checking Rosetta 2…"
 
-echo "=> Rosetta 2"
-
-arch=$(uname -p)
-if [[ "$arch" = 'arm' ]]; then
-    echo "Installing Rosetta 2"
-    /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-    exit 0
+if [[ "$(uname -p)" == "arm" ]]; then
+  if pgrep -q oahd; then
+    print_success "Rosetta 2 already installed"
+  else
+    print_info "Installing Rosetta 2…"
+    /usr/sbin/softwareupdate --install-rosetta --agree-to-license \
+      && print_success "Rosetta installed" \
+      || { print_error "Rosetta install failed"; exit 1; }
+  fi
 else
-    echo "Rosetta not needed on your system."
-    exit 0
+  print_info "Intel Mac – no Rosetta needed"
 fi

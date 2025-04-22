@@ -1,48 +1,33 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-CONFIGURED_MESSAGE="# .dot => preconfigured"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR" || { echo "❌ Could not cd to $ROOT_DIR"; exit 1; }
 
-ROOT_DIR="$(cd "$(dirname "$0")"; pwd -P)"
-PARENT_DIR="$(dirname "$ROOT_DIR")"
-CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-cd $ROOT_DIR
-
+# Gemeinsame Funktionen
 source "$ROOT_DIR/core/functions.sh"
 
-export CONFIGURED_MESSAGE
+# Export für Subshel­l­e
 export ROOT_DIR
-
-export -f print_info
-export -f print_success
-export -f print_error
-export -f symlink_from_to
-export -f modify_file
-export -f modify_line
-export -f insert_to_file_after_line_number
-export -f uncomment_line
-export -f prepend_string_to_file
-export -f add_config
-export -f get_arch
+export -f ask_for_confirmation ask_for_sudo answer_is_yes
+export -f print_info print_success print_error
+export -f symlink_from_to modify_file modify_line
+export -f insert_to_file_after_line_number uncomment_line prepend_string_to_file
+export -f line_exists add_config get_arch
 
 ask_for_sudo
 
-while true; do
-  ask_for_confirmation "Warning: This shell will overwrite your current workspace setup. Proceed?"
-  case $REPLY in
-    [Yy]* ) break;;
-    [Nn]* ) exit;;
-    * ) echo "Please answer, yes or no"
-  esac
-done
+ask_for_confirmation "⚠️ This will overwrite your workspace. Continue?"
+answer_is_yes || { print_info "Aborted."; exit 0; }
 
-
-print_info "Running configurations..."
-
-for SHELL in $ROOT_DIR/utils/*
-do
-  print_info "Running $(basename $SHELL)..."
-  sh $SHELL
+print_info "Running all setup scripts…"
+for script in "$ROOT_DIR/utils/"*.sh; do
+  if [[ -x "$script" ]]; then
+    print_info "➡️  $(basename "$script")"
+    bash "$script" || print_error "Failed:" "$script"
+  else
+    print_info "Skipping non-executable $(basename "$script")"
+  fi
 done
 
 exec bash

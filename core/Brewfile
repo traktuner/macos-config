@@ -2,51 +2,50 @@
 tap 'traktuner/traktuner'
 
 # Utilities
-brew 'mas', retry: 5
-brew 'git', retry: 5
-brew 'mackup', retry: 5
+brew 'mas'
+brew 'git'
+brew 'mackup'
 
 # Apps from "Web"
-cask 'warp', retry: 5
-cask 'firefox', retry: 5
-cask 'eloston-chromium', retry: 5, args: { no_quarantine: true }
-cask 'protonvpn', retry: 5
-cask 'protonmail-bridge', retry: 5
-cask 'proton-pass', retry: 5
-cask 'standard-notes', retry: 5
-cask 'synology-drive', retry: 5
-cask 'visual-studio-code', retry: 5
-cask 'vlc', retry: 5
-cask 'crossover', retry: 5
-cask 'beeper', retry: 5
-cask 'cryptomator', retry: 5
-cask 'appcleaner', retry: 5
-cask 'steam', retry: 5
-cask 'spotify', retry: 5
-cask 'keepingyouawake', retry: 5
-cask 'shottr', retry: 5
-cask 'bartender', retry: 5
-cask 'onyx', retry: 5
-cask 'daisydisk', retry: 5
-cask 'handbrake', retry: 5
-cask 'utm', retry: 5
-cask 'mist', retry: 5
-cask 'diffusionbee', retry: 5
-cask 'freetube', retry: 5
-cask 'crashplan', retry: 5
-cask 'microsoft-defender', retry: 5
-cask 'little-snitch', retry: 5
-cask 'network-share-mounter', retry: 5
-cask 'cleanmymac', retry: 5
-# Apps for Work
-cask 'microsoft-word', retry: 5
-cask 'microsoft-excel', retry: 5
-cask 'microsoft-teams', retry: 5
-cask 'cisco-jabber', retry: 5
-cask 'webex', retry: 5
-cask 'citrix-workspace', retry: 5
+cask 'warp'
+cask 'firefox'
+cask 'eloston-chromium', args: { no_quarantine: true }
+cask 'protonvpn'
+cask 'proton-mail'
+cask 'proton-drive'
+cask 'proton-pass'
+cask 'standard-notes'
+cask 'synology-drive'
+cask 'visual-studio-code'
+cask 'vlc'
+cask 'crossover'
+cask 'beeper'
+cask 'cryptomator'
+cask 'appcleaner'
+cask 'steam'
+cask 'spotify'
+cask 'keepingyouawake'
+cask 'shottr'
+cask 'bartender'
+cask 'daisydisk'
+cask 'handbrake'
+cask 'utm'
+cask 'mist'
+cask 'crashplan'
+cask 'microsoft-defender'
+cask 'little-snitch'
+cask 'network-share-mounter'
+cask 'cleanmymac'
 
-# Apps from "App Store"
+# Apps for Work
+cask 'microsoft-word'
+cask 'microsoft-excel'
+cask 'microsoft-teams'
+cask 'cisco-jabber'
+cask 'webex'
+cask 'citrix-workspace'
+
+# Apps from the App Store
 mas 'Logic Pro', id: 634148309
 mas 'Pixelmator Pro', id: 1289583905
 mas 'Vivid', id: 6443470555
@@ -58,9 +57,10 @@ mas 'Tailscale', id: 1475387142
 mas 'Affinity Photo 2', id: 1616822987
 mas 'Affinity Designer 2', id: 1616831348
 mas 'Affinity Publisher 2', id: 1606941598
+
 # Extensions
 mas '1Blocker', id: 1365531024
-mas 'StopTheMadness Pro ', id: 6471380298
-mas 'Noir ', id: 1592917505
+mas 'StopTheMadness Pro', id: 6471380298
+mas 'Noir', id: 1592917505
 mas 'Wayback Machine', id: 1472432422
 mas 'Proton Pass for Safari', id: 6502835663
