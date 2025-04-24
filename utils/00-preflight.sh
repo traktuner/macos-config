@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load shared functions
+# Load shared functions from core
 source "$ROOT_DIR/core/functions.sh"
 
-print_info "Running PRE-FLIGHT tasks: tmutil snapshot, CrashPlan & toggleAirport…"
+print_info "Running PRE-FLIGHT tasks: tmutil snapshot, CrashPlan & toggleAirport setup"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 0) CREATE A TMUTIL LOCAL SNAPSHOT
+# 0) CREATE A TIME MACHINE LOCAL SNAPSHOT
 # ─────────────────────────────────────────────────────────────────────────────
 TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 SNAPSHOT_NAME="preflight-${TIMESTAMP}"
@@ -31,7 +31,7 @@ CP_SOURCE_CFG="$SCRIPT_DIR/deploy.properties"
 
 print_info "Ensuring CrashPlan support folder exists…"
 sudo mkdir -p "$CP_TARGET_DIR" \
-  && print_success "OK: $CP_TARGET_DIR" \
+  && print_success "Created $CP_TARGET_DIR" \
   || { print_error "Could not create $CP_TARGET_DIR"; exit 1; }
 
 if [[ -f "$CP_SOURCE_CFG" ]]; then
@@ -58,7 +58,7 @@ sudo mkdir -p "/Library/Scripts" \
 if sudo curl -fsSL \
      "https://gist.githubusercontent.com/traktuner/8431e9daf006c0c1d246b8a4766f15b4/raw/toggleAirport.sh" \
      -o "$TOGGLER_SCRIPT"; then
-  print_success "Downloaded toggleAirport.sh"
+  print_success "Downloaded toggleAirport.sh to $TOGGLER_SCRIPT"
 else
   print_error "Failed to download toggleAirport.sh"
   exit 1
@@ -76,7 +76,7 @@ sudo mkdir -p "/Library/LaunchAgents" \
 if sudo curl -fsSL \
      "https://gist.githubusercontent.com/traktuner/8431e9daf006c0c1d246b8a4766f15b4/raw/com.mine.toggleairport.plist" \
      -o "$PLIST_DEST"; then
-  print_success "Downloaded LaunchAgent plist"
+  print_success "Downloaded LaunchAgent plist to $PLIST_DEST"
 else
   print_error "Failed to download LaunchAgent plist"
   exit 1
@@ -86,14 +86,15 @@ sudo chmod 600 "$PLIST_DEST" \
   && print_success "Set permissions on LaunchAgent plist" \
   || { print_error "Failed to chmod LaunchAgent plist"; exit 1; }
 
-# Unload any existing agent
-sudo launchctl unload "$PLIST_DEST" &>/dev/null || true
-# Load the new agent
-print_info "Loading toggleAirport LaunchAgent…"
-if sudo launchctl load "$PLIST_DEST"; then
-  print_success "toggleAirport LaunchAgent loaded"
+# Unload any existing user agent
+launchctl bootout gui/"$UID" "$PLIST_DEST" &>/dev/null || true
+
+# Bootstrap into the current user's GUI session
+print_info "Bootstrapping toggleAirport LaunchAgent into your GUI session…"
+if launchctl bootstrap gui/"$UID" "$PLIST_DEST"; then
+  print_success "toggleAirport LaunchAgent bootstrapped (user domain)"
 else
-  print_error "Failed to load toggleAirport LaunchAgent"
+  print_error "Failed to bootstrap toggleAirport LaunchAgent"
   exit 1
 fi
 
