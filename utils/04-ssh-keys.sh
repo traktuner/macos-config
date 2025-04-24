@@ -8,8 +8,7 @@ print_info "SSH Keyfiles – mounting SMB share and copying keys"
 # --- Configuration ---
 SMB_PATH="172.16.10.100/tresor/ssh"
 MOUNT_POINT="/Volumes/ssh"
-# Define TARGET_DIR here to avoid unbound-variable
-TARGET_DIR="${TARGET_DIR:-$HOME/.ssh}"
+TARGET_DIR="$HOME/.ssh"      # <— define before use
 MAX_ATTEMPTS=3
 
 # --- Prompt for credentials ---
@@ -29,14 +28,14 @@ if mount | grep -q "on $MOUNT_POINT "; then
     || print_error "Failed to unmount stale share"
 fi
 
-# --- Attempt to mount via Finder (open smb://…) ---
+# --- Mount via Finder ---
 print_info "Mounting SMB share via Finder…"
 if ! open "smb://$SMB_USER:$SMB_PASS@$SMB_PATH"; then
   print_error "Failed to invoke Finder for smb:// mount"
   exit 1
 fi
 
-# wait up to 10s for volume to appear
+# --- Wait up to 10s for the volume to appear ---
 for i in {1..10}; do
   [[ -d "$MOUNT_POINT" ]] && break
   sleep 1
