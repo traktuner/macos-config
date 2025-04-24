@@ -36,15 +36,15 @@ if mount | grep -q "on ${MOUNT_POINT} "; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4) Trigger Finder mount (shows GUI prompt)
+# 4) Trigger Finder mount (opens GUI prompt)
 # ─────────────────────────────────────────────────────────────────────────────
 print_info "Opening Finder to mount smb://…"
 open "smb://${SMB_USER}:${SMB_PASS}@${SMB_PATH}" || true
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5) Wait up to $TIMEOUT seconds for the volume to appear
+# 5) Wait up to $TIMEOUT seconds for the mount-point to appear
 # ─────────────────────────────────────────────────────────────────────────────
-print_info "Waiting up to ${TIMEOUT}s for ${MOUNT_POINT} to appear…"
+print_info "Waiting up to ${TIMEOUT}s for ${MOUNT_POINT}…"
 elapsed=0
 while [[ ! -d "${MOUNT_POINT}" && ${elapsed} -lt ${TIMEOUT} ]]; do
   sleep 1
@@ -52,7 +52,7 @@ while [[ ! -d "${MOUNT_POINT}" && ${elapsed} -lt ${TIMEOUT} ]]; do
 done
 
 if [[ ! -d "${MOUNT_POINT}" ]]; then
-  print_error "Mountpoint did not appear within ${TIMEOUT}s. Aborting."
+  print_error "Mount did not appear within ${TIMEOUT}s. Aborting."
   unset SMB_PASS
   exit 1
 fi
@@ -61,20 +61,19 @@ print_success "SMB share mounted at ${MOUNT_POINT}"
 # ─────────────────────────────────────────────────────────────────────────────
 # 6) Copy SSH keys if any exist
 # ─────────────────────────────────────────────────────────────────────────────
-files=( "${MOUNT_POINT}"/* )
-if [[ ! -e "${files[0]}" ]]; then
-  print_error "No files found in ${MOUNT_POINT}; skipping copy."
-else
+if compgen -G "${MOUNT_POINT}/*" > /dev/null; then
   print_info "Copying SSH keys to ${TARGET_DIR}…"
   if sudo cp -R "${MOUNT_POINT}"/* "${TARGET_DIR}/"; then
     print_success "SSH keys copied"
   else
     print_error "Failed to copy SSH keys"
   fi
+else
+  print_error "No files found under ${MOUNT_POINT}; skipping copy."
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7) Unmount share with fallback
+# 7) Unmount the share
 # ─────────────────────────────────────────────────────────────────────────────
 print_info "Unmounting ${MOUNT_POINT}…"
 if sudo diskutil unmount "${MOUNT_POINT}"; then
@@ -89,6 +88,6 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8) Clean up
+# 8) Clean up sensitive data
 # ─────────────────────────────────────────────────────────────────────────────
 unset SMB_PASS
