@@ -1,67 +1,53 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load shared functions
 source "$ROOT_DIR/core/functions.sh"
-print_info "SSH Keyfiles – mounting SMB share and copying keys"
+print_info "SSH Keyfiles – mounting SMB share via Finder and copying keys"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Configuration
-# ─────────────────────────────────────────────────────────────────────────────
-SMB_SERVER="172.16.10.100/tresor/ssh"
+SMB_PATH="172.16.10.100/tresor/ssh"
 MOUNT_POINT="/Volumes/ssh"
-TARGET_DIR="$HOME/.ssh"        # ← hier sicher definieren
-MAX_ATTEMPTS=3
+TARGET_DIR="$HOME/.ssh"
+TIMEOUT=30   # seconds to wait for mount
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Prompt for credentials
-# ─────────────────────────────────────────────────────────────────────────────
 read -p "Please enter your SMB username: " SMB_USER
 read -s -p "Please enter your SMB password: " SMB_PASS
 echo
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Prepare mount point and target dir
-# ─────────────────────────────────────────────────────────────────────────────
+# Ensure target folder exists
 ensure_directory "$TARGET_DIR" false
-ensure_directory "$MOUNT_POINT" true
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Unmount stale mount if present
-# ─────────────────────────────────────────────────────────────────────────────
+# If already mounted, unmount first
 if mount | grep -q "on $MOUNT_POINT "; then
-  print_info "Unmounting stale share…"
+  print_info "Unmounting existing share…"
   sudo diskutil unmount "$MOUNT_POINT" &>/dev/null \
-    && print_success "Stale share unmounted" \
-    || print_error "Failed to unmount stale share"
+    && print_success "Existing share unmounted" \
+    || print_error "Failed to unmount existing share"
 fi
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Attempt to mount via mount_smbfs
-# ─────────────────────────────────────────────────────────────────────────────
-attempt=1
-while (( attempt <= MAX_ATTEMPTS )); do
-  print_info "Mount attempt $attempt/$MAX_ATTEMPTS"
-  # feed password via stdin, use sudo so we own the mount
-  if printf "%s\n" "$SMB_PASS" | sudo mount_smbfs "//$SMB_USER@$SMB_SERVER" "$MOUNT_POINT"; then
+# Trigger Finder mount (opens credentials dialog)
+print_info "Opening Finder to mount smb://…"
+open "smb://$SMB_USER:$SMB_PASS@$SMB_PATH"
+
+# Wait for the mount to appear
+print_info "Waiting up to $TIMEOUT seconds for $MOUNT_POINT to appear…"
+elapsed=0
+while (( elapsed < TIMEOUT )); do
+  if [[ -d "$MOUNT_POINT" ]]; then
     print_success "SMB share mounted at $MOUNT_POINT"
     break
-  else
-    print_error "Mount failed"
-    (( attempt++ ))
-    sleep 2
   fi
+  sleep 1
+  (( elapsed++ ))
 done
 
-if (( attempt > MAX_ATTEMPTS )); then
-  print_error "Could not mount SMB share after $MAX_ATTEMPTS attempts"
+if [[ ! -d "$MOUNT_POINT" ]]; then
+  print_error "Mount did not appear within $TIMEOUT seconds. Aborting."
   unset SMB_PASS
   exit 1
 fi
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Copy SSH keys as root
-# ─────────────────────────────────────────────────────────────────────────────
+# Copy SSH keys
 print_info "Copying SSH keys to $TARGET_DIR…"
 if sudo cp -R "$MOUNT_POINT"/* "$TARGET_DIR"/; then
   print_success "SSH keys copied"
@@ -69,9 +55,7 @@ else
   print_error "Failed to copy SSH keys"
 fi
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Unmount share
-# ─────────────────────────────────────────────────────────────────────────────
+# Unmount when done
 print_info "Unmounting $MOUNT_POINT…"
 if sudo diskutil unmount "$MOUNT_POINT"; then
   print_success "Unmounted share"
@@ -79,7 +63,5 @@ else
   print_error "Failed to unmount share"
 fi
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Clean up sensitive data
-# ─────────────────────────────────────────────────────────────────────────────
+# Clean up
 unset SMB_PASS
