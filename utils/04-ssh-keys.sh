@@ -28,7 +28,7 @@ if (( attempt > MAX )); then
 fi
 
 print_info "Copying SSH keys…"
-cp "$MOUNT"/* "$TARGET"/ && print_success "Copied SSH keys" || print_error "Copy failed"
+sudo cp "$MOUNT"/* "$TARGET"/ && print_success "Copied SSH keys" || print_error "Copy failed"
 
 print_info "Unmounting share…"
 sudo umount "$MOUNT" && print_success "Unmounted" || print_error "Unmount failed"
