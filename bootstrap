@@ -13,7 +13,7 @@ cd "$ROOT_DIR" || { echo "❌ Could not cd to $ROOT_DIR"; exit 1; }
 # Load shared functions
 source "$ROOT_DIR/core/functions.sh"
 
-# Export helpers to subshells
+# Export helpers into subshells
 export ROOT_DIR
 export -f ask_for_confirmation ask_for_sudo answer_is_yes
 export -f print_info print_success print_error
@@ -27,41 +27,47 @@ ask_for_sudo
 
 print_info "Welcome to your macOS setup bootstrap!"
 
-# Gather scripts
-mapfile -t UTILS < <(ls "$ROOT_DIR/utils"/*.sh | sort)
+# Collect all utils scripts into an array
+UTILS=()
+for f in "$ROOT_DIR/utils"/*.sh; do
+  UTILS+=("$f")
+done
 
-# Build menu
+# Display menu
 echo
 echo "Please choose an action:"
 echo "  0) Run full setup (all scripts)"
-for i in "${!UTILS[@]}"; do
-  idx=$((i+1))
-  name=$(basename "${UTILS[i]}")
-  echo "  $idx) Run ${name}"
+i=1
+for script in "${UTILS[@]}"; do
+  echo "  $i) Run $(basename "$script")"
+  ((i++))
 done
 echo "  q) Quit"
 echo
 
-# Prompt
+# Handle choice
 while true; do
-  read -p "Enter choice [0-${#UTILS[@]}, q]: " choice
+  read -p "Enter choice [0-$((i-1)), q]: " choice
   case "$choice" in
-    [Qq] ) echo "Goodbye!"; exit 0 ;;
-    0 ) 
+    [Qq] )
+      echo "Goodbye!"
+      exit 0
+      ;;
+    0 )
       print_info "Running all setup scripts…"
       for script in "${UTILS[@]}"; do
         print_info "➡️  $(basename "$script")"
-        bash "$script" || print_error "Failed:" "$script"
+        bash "$script" || print_error "Failed: $(basename "$script")"
       done
       break
       ;;
     ''|*[!0-9]*)
       echo "Invalid choice.";;
     *)
-      if (( choice >= 1 && choice <= ${#UTILS[@]} )); then
-        script=${UTILS[choice-1]}
-        print_info "Running $(basename "$script")…"
-        bash "$script" || print_error "Failed:" "$script"
+      if (( choice >= 1 && choice < i )); then
+        sel_script="${UTILS[choice-1]}"
+        print_info "Running $(basename "$sel_script")…"
+        bash "$sel_script" || print_error "Failed: $(basename "$sel_script")"
         break
       else
         echo "Choice out of range."
