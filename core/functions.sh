@@ -13,9 +13,9 @@ ask_for_sudo() {
 }
 
 # — Print Helpers
-print_info()    { printf "\n\e[0;34m 👊  %s\e[0m\n" "$1"; }
-print_success() { printf "\e[0;32m 👍  %s\e[0m\n" "$1"; }
-print_error()   { printf "\e[0;31m 😡  %s\e[0m\n" "$1"; }
+print_info()    { printf "\n\e[0;34m 👊  %s\e[0m\n"  "$1"; }
+print_success() { printf "\e[0;32m 👍  %s\e[0m\n"   "$1"; }
+print_error()   { printf "\e[0;31m 😡  %s\e[0m\n"   "$1"; }
 
 # — Symlink with Confirmation
 symlink_from_to() {
@@ -26,8 +26,13 @@ symlink_from_to() {
     print_success "$(basename "$TO") already linked"
   else
     ask_for_confirmation "$(basename "$TO") exists. Overwrite?"
-    if answer_is_yes; then rm -rf "$TO"; ln -fs "$FROM" "$TO"; print_success "Re-symlinked"; 
-    else print_info "Skipped $(basename "$FROM")"; fi
+    if answer_is_yes; then
+      rm -rf "$TO"
+      ln -fs "$FROM" "$TO"
+      print_success "Re-symlinked"
+    else
+      print_info "Skipped $(basename "$FROM")"
+    fi
   fi
 }
 
@@ -54,7 +59,10 @@ add_config() {
   mkdir -p "$path"
   if [[ -f "$cfg" ]]; then
     while IFS= read -r line; do
-      if line_exists "$line" "$cfg"; then print_info "Already in $file: $line"; return; fi
+      if line_exists "$line" "$cfg"; then
+        print_info "Already in $file: $line"
+        return
+      fi
     done <<< "$content"
     printf "%s\n" "$content" >> "$cfg"
     print_success "Appended to $file"
@@ -86,15 +94,20 @@ retry() {
   print_success "Command '$*' succeeded on attempt $attempt."
 }
 
-# — defaults write wrapper (auto-sudo on /Library)
+# — defaults write wrapper (catches errors, never exits)
 safe_defaults_write() {
   local target="$1"; shift
   if [[ "$target" = /* ]]; then
-    sudo defaults write "$target" "$@"
+    if sudo defaults write "$target" "$@"; then
+      return 0
+    fi
   else
-    defaults write "$target" "$@"
+    if defaults write "$target" "$@"; then
+      return 0
+    fi
   fi
-  [[ $? -ne 0 ]] && print_error "defaults write failed for: $target $*"
+  print_error "defaults write failed for: $target $*"
+  return 0
 }
 
 # — PlistBuddy wrapper
