@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Prevent running as root
 if [[ $(id -u) -eq 0 ]]; then
-  echo "❌ Please do NOT run bootstrap.sh as root. Aborting."
+  echo "❌ Please run bootstrap.sh as your user, not root. Aborting."
   exit 1
 fi
 
@@ -13,7 +13,7 @@ cd "$ROOT_DIR" || { echo "❌ Could not cd to $ROOT_DIR"; exit 1; }
 # Load shared functions
 source "$ROOT_DIR/core/functions.sh"
 
-# Export for subshells
+# Export helpers to subshells
 export ROOT_DIR
 export -f ask_for_confirmation ask_for_sudo answer_is_yes
 export -f print_info print_success print_error
@@ -25,17 +25,50 @@ export -f ensure_directory download_file bootstrap_launch_agent tm_snapshot
 
 ask_for_sudo
 
-ask_for_confirmation "⚠️ This will overwrite your workspace. Continue?"
-answer_is_yes || { print_info "Aborted."; exit 0; }
+print_info "Welcome to your macOS setup bootstrap!"
 
-print_info "Running all setup scripts…"
-for script in "$ROOT_DIR/utils/"*.sh; do
-  if [[ -x "$script" ]]; then
-    print_info "➡️  $(basename "$script")"
-    bash "$script" || print_error "Failed:" "$script"
-  else
-    print_info "Skipping non-executable $(basename "$script")"
-  fi
+# Gather scripts
+mapfile -t UTILS < <(ls "$ROOT_DIR/utils"/*.sh | sort)
+
+# Build menu
+echo
+echo "Please choose an action:"
+echo "  0) Run full setup (all scripts)"
+for i in "${!UTILS[@]}"; do
+  idx=$((i+1))
+  name=$(basename "${UTILS[i]}")
+  echo "  $idx) Run ${name}"
+done
+echo "  q) Quit"
+echo
+
+# Prompt
+while true; do
+  read -p "Enter choice [0-${#UTILS[@]}, q]: " choice
+  case "$choice" in
+    [Qq] ) echo "Goodbye!"; exit 0 ;;
+    0 ) 
+      print_info "Running all setup scripts…"
+      for script in "${UTILS[@]}"; do
+        print_info "➡️  $(basename "$script")"
+        bash "$script" || print_error "Failed:" "$script"
+      done
+      break
+      ;;
+    ''|*[!0-9]*)
+      echo "Invalid choice.";;
+    *)
+      if (( choice >= 1 && choice <= ${#UTILS[@]} )); then
+        script=${UTILS[choice-1]}
+        print_info "Running $(basename "$script")…"
+        bash "$script" || print_error "Failed:" "$script"
+        break
+      else
+        echo "Choice out of range."
+      fi
+      ;;
+  esac
 done
 
+print_success "Done! You can now close this terminal."
 exec bash
