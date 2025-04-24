@@ -9,9 +9,9 @@ print_info "Homebrew setup"
 # Keep sudo timestamp alive for any CLI sudo calls
 ask_for_sudo
 
-# ---------------------------------------------------
-# Install Casks into ~/Applications (no sudo prompts)
-# ---------------------------------------------------
+# -------------------------------------------------------------------
+# Install Casks into ~/Applications to avoid repeated sudo prompts
+# -------------------------------------------------------------------
 USER_APPDIR="$HOME/Applications"
 print_info "Ensuring user Applications directory exists at $USER_APPDIR"
 mkdir -p "$USER_APPDIR"
@@ -61,7 +61,7 @@ else
 fi
 
 # -------------------------------------------------------------------
-# 2) Initialize Homebrew in current shell and persist to zsh files
+# 2) Initialize Homebrew in the current shell and persist to zsh
 # -------------------------------------------------------------------
 # 2a) For this script
 eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -69,9 +69,7 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 # 2b) For all future zsh sessions
 BREW_ENV_CMD='eval "$(/opt/homebrew/bin/brew shellenv)"'
 for PROFILE in "$HOME/.zprofile" "$HOME/.zshrc"; do
-  # Create profile file if it doesn't exist
   [[ -f $PROFILE ]] || touch "$PROFILE"
-  # Append the brew env line if it's not already present
   if ! grep -Fxq "$BREW_ENV_CMD" "$PROFILE"; then
     print_info "Appending Homebrew environment setup to $PROFILE"
     printf '\n# Load Homebrew environment\n%s\n' "$BREW_ENV_CMD" >>"$PROFILE"
@@ -82,13 +80,36 @@ for PROFILE in "$HOME/.zprofile" "$HOME/.zshrc"; do
 done
 
 # -------------------------------------------------------------------
-# 3) Run brew bundle to install all entries in your Brewfile
+# 3) Prefetch all formulae and casks into Homebrew’s cache
+#    so we can install everything offline in the next step
+# -------------------------------------------------------------------
+print_info "Prefetching formulae and casks from Brewfile…"
+# extract lists
+formulae=($(brew bundle list --file="$ROOT_DIR/core/Brewfile" --formula))
+casks=($(brew bundle list --file="$ROOT_DIR/core/Brewfile" --cask))
+
+# fetch each formula
+for f in "${formulae[@]}"; do
+  print_info "Fetching formula: $f"
+  retry 3 5 brew fetch "$f" || { print_error "Failed to fetch $f"; exit 1; }
+done
+
+# fetch each cask
+for c in "${casks[@]}"; do
+  print_info "Fetching cask: $c"
+  retry 3 5 brew fetch --cask "$c" || { print_error "Failed to fetch cask $c"; exit 1; }
+done
+
+print_success "Prefetch complete."
+
+# -------------------------------------------------------------------
+# 4) Run brew bundle to install all entries in your Brewfile
 # -------------------------------------------------------------------
 print_info "Running brew bundle…"
 retry 3 5 brew bundle --file="$ROOT_DIR/core/Brewfile" || exit 1
 
 # -------------------------------------------------------------------
-# 4) Cleanup, upgrade, and update Homebrew itself, formulae & casks
+# 5) Cleanup, upgrade, and update Homebrew itself, formulae & casks
 # -------------------------------------------------------------------
 print_info "Cleaning up old downloads and cache…"
 retry 2 5 brew cleanup
@@ -100,7 +121,7 @@ print_info "Updating Homebrew itself…"
 retry 2 5 brew update
 
 # -------------------------------------------------------------------
-# 5) Final health check
+# 6) Final health check
 # -------------------------------------------------------------------
 if brew doctor; then
   print_success "brew doctor: All good!"
