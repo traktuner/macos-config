@@ -1,55 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load shared functions from core
 source "$ROOT_DIR/core/functions.sh"
-
 print_info "macOS system configuration"
 
-# ── safe_defaults_write ───────────────────────────────────────────────────────
-# wraps `defaults write`, using sudo when targeting an absolute plist under /Library
-safe_defaults_write() {
-  local domain_or_plist="$1"
-  shift
-  if [[ "$domain_or_plist" = /* ]]; then
-    sudo defaults write "$domain_or_plist" "$@"
-  else
-    defaults write "$domain_or_plist" "$@"
-  fi
-
-  if [[ $? -ne 0 ]]; then
-    print_error "defaults write failed for:" "$domain_or_plist $*"
-  fi
-}
-
-# ── safe_plistbuddy ───────────────────────────────────────────────────────────
-safe_plistbuddy() {
-  local cmd="$1" plist="$2"
-  if ! /usr/libexec/PlistBuddy -c "$cmd" "$plist"; then
-    print_error "PlistBuddy failed:" "$cmd on $plist"
-  fi
-}
-
-# ── safe_killall ─────────────────────────────────────────────────────────────
-safe_killall() {
-  if killall "$1" &>/dev/null; then
-    print_success "Restarted $1"
-  else
-    print_info "$1 was not running"
-  fi
-}
-
-###############################################################################
 # Analytics
-###############################################################################
-safe_defaults_write "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" \
-  AutoSubmit -bool false
-safe_defaults_write "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" \
-  ThirdPartyDataSubmit -bool false
+safe_defaults_write "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" AutoSubmit -bool false
+safe_defaults_write "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" ThirdPartyDataSubmit -bool false
 
-###############################################################################
-# General UI/UX
-###############################################################################
+# UI/UX
 sudo nvram StartupMute=%01
 safe_defaults_write NSGlobalDomain NSDocumentSaveNewDocumentsToCloud -bool false
 safe_defaults_write com.apple.print.PrintingPrefs "Quit When Finished" -bool true
@@ -63,22 +22,16 @@ safe_defaults_write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true
 safe_defaults_write com.apple.DiskArbitration.diskarbitrationd DADisableEjectNotification -bool true
 safe_defaults_write "/Library/Preferences/com.apple.loginwindow" GuestEnabled -bool false
 
-###############################################################################
-# Input Devices
-###############################################################################
+# Input
 safe_defaults_write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
-###############################################################################
 # Screen
-###############################################################################
 safe_defaults_write com.apple.screensaver askForPassword -int 1
 safe_defaults_write com.apple.screensaver askForPasswordDelay -int 0
 safe_defaults_write com.apple.screencapture location -string "${HOME}/Desktop"
 safe_defaults_write com.apple.screencapture disable-shadow -bool true
 
-###############################################################################
 # Finder
-###############################################################################
 safe_defaults_write com.apple.finder NewWindowTarget -string "PfDe"
 safe_defaults_write com.apple.finder NewWindowTargetPath -string "file://${HOME}/Desktop/"
 safe_defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
@@ -96,12 +49,9 @@ safe_defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false
 safe_defaults_write com.apple.desktopservices DSDontWriteNetworkStores -bool true
 safe_defaults_write com.apple.desktopservices DSDontWriteUSBStores -bool true
 
-safe_plistbuddy "Set :DesktopViewSettings:IconViewSettings:arrangeBy grid" \
-  "$HOME/Library/Preferences/com.apple.finder.plist"
-safe_plistbuddy "Set :FK_StandardViewSettings:IconViewSettings:arrangeBy grid" \
-  "$HOME/Library/Preferences/com.apple.finder.plist"
-safe_plistbuddy "Set :StandardViewSettings:IconViewSettings:arrangeBy grid" \
-  "$HOME/Library/Preferences/com.apple.finder.plist"
+safe_plistbuddy "Set :DesktopViewSettings:IconViewSettings:arrangeBy grid" "$HOME/Library/Preferences/com.apple.finder.plist"
+safe_plistbuddy "Set :FK_StandardViewSettings:IconViewSettings:arrangeBy grid" "$HOME/Library/Preferences/com.apple.finder.plist"
+safe_plistbuddy "Set :StandardViewSettings:IconViewSettings:arrangeBy grid" "$HOME/Library/Preferences/com.apple.finder.plist"
 
 safe_defaults_write com.apple.finder FXPreferredViewStyle -string "clmv"
 safe_defaults_write com.apple.finder WarnOnEmptyTrash -bool false
@@ -109,9 +59,7 @@ safe_defaults_write com.apple.finder ShowPathbar -bool true
 safe_defaults_write com.apple.finder ShowStatusBar -bool true
 safe_defaults_write com.apple.finder ShowRecentTags -bool false
 
-###############################################################################
-# Dock, Dashboard & Hot Corners
-###############################################################################
+# Dock & Hot Corners
 safe_defaults_write com.apple.dock orientation -string "left"
 safe_defaults_write com.apple.dock tilesize -int 30
 safe_defaults_write com.apple.dock mineffect -string "scale"
@@ -125,53 +73,37 @@ safe_defaults_write com.apple.dock wvous-tr-corner -int 0
 safe_defaults_write com.apple.dock wvous-bl-corner -int 0
 safe_defaults_write com.apple.dock wvous-br-corner -int 0
 
-###############################################################################
 # Photos
-###############################################################################
-print_info "Disabling auto-launch of Photos when devices connect"
+print_info "Disabling Photos auto-launch"
 if defaults -currentHost write com.apple.ImageCapture disableHotPlug -bool true; then
-  print_success "Photos auto-launch disabled"
+  print_success "Photos disabled"
 else
-  print_error "Failed to disable Photos auto-launch"
+  print_error "Failed to disable Photos"
 fi
 
-###############################################################################
 # Activity Monitor
-###############################################################################
 safe_defaults_write com.apple.ActivityMonitor ShowCategory -int 0
 safe_defaults_write com.apple.ActivityMonitor SortColumn -string "CPUUsage"
 safe_defaults_write com.apple.ActivityMonitor SortDirection -int 0
 
-###############################################################################
 # App Store
-###############################################################################
 safe_defaults_write com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
 safe_defaults_write com.apple.SoftwareUpdate ScheduleFrequency -int 1
 safe_defaults_write com.apple.SoftwareUpdate AutomaticDownload -int 1
 safe_defaults_write com.apple.SoftwareUpdate CriticalUpdateInstall -int 1
 safe_defaults_write com.apple.commerce AutoUpdate -bool true
 
-###############################################################################
 # Wallpaper
-###############################################################################
 print_info "Setting default wallpaper"
 osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.png\"" \
   && print_success "Wallpaper set" \
   || print_error "Failed to set wallpaper"
 
-###############################################################################
 # Spotlight
-###############################################################################
 print_info "Rebuilding Spotlight index"
-if sudo mdutil -E /; then
-  print_success "Spotlight reindex triggered"
-else
-  print_error "Spotlight reindex failed"
-fi
+if sudo mdutil -E /; then print_success "Spotlight reindex triggered"; else print_error "Spotlight reindex failed"; fi
 
-###############################################################################
 # Restart affected apps
-###############################################################################
 for app in "Activity Monitor" "cfprefsd" "Dock" "Finder" "Messages" "Photos" "diskarbitrationd" "SystemUIServer"; do
   safe_killall "$app"
 done

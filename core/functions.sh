@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# — Benutzer­abfragen
+# — User Prompts
 answer_is_yes()    { [[ "$REPLY" =~ ^[Yy]$ ]]; }
 ask_for_confirmation() {
   printf "\e[0;33m 🤔  %s (y/n) \e[0m" "$1"
@@ -12,12 +12,12 @@ ask_for_sudo() {
   while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 }
 
-# — Druck­funktionen
+# — Print Helpers
 print_info()    { printf "\n\e[0;34m 👊  %s\e[0m\n" "$1"; }
 print_success() { printf "\e[0;32m 👍  %s\e[0m\n" "$1"; }
 print_error()   { printf "\e[0;31m 😡  %s\e[0m\n" "$1"; }
 
-# — Symlink mit Bestätigung
+# — Symlink with Confirmation
 symlink_from_to() {
   local FROM="$1" TO="$2"
   if [[ ! -e "$TO" ]]; then
@@ -31,7 +31,7 @@ symlink_from_to() {
   fi
 }
 
-# — Text-Manipulation
+# — Text Manipulation
 modify_file() {
   [[ ! -f "$3" ]] && print_error "File not found:" "$3" && return 1
   grep -qF "$2" "$3" || awk "/$1/{print;print \"$2\";next}1" "$3" > "$3.tmp" && mv "$3.tmp" "$3"
@@ -68,9 +68,7 @@ get_arch() {
   [[ "$(uname -m)" == "arm64" ]] && echo arm64 || echo x64
 }
 
-# ——————— NEU: Allgemeine Helfer ——————————————————————————
-
-# retry <max-tries> <delay-seconds> <command...>
+# — Retry a command up to N times
 retry() {
   local -r -i max_tries="${1:-3}"
   local -r -i delay_secs="${2:-5}"
@@ -88,8 +86,7 @@ retry() {
   print_success "Command '$*' succeeded on attempt $attempt."
 }
 
-# safe_defaults_write <domain|plist> <key> <type> <value>
-# uses sudo if writing to an absolute path under /Library or /System
+# — defaults write wrapper (auto-sudo on /Library)
 safe_defaults_write() {
   local target="$1"; shift
   if [[ "$target" = /* ]]; then
@@ -100,14 +97,14 @@ safe_defaults_write() {
   [[ $? -ne 0 ]] && print_error "defaults write failed for: $target $*"
 }
 
-# safe_plistbuddy <command> <plist-file>
+# — PlistBuddy wrapper
 safe_plistbuddy() {
   if ! /usr/libexec/PlistBuddy -c "$1" "$2"; then
     print_error "PlistBuddy failed: $1 → $2"
   fi
 }
 
-# safe_killall <process-name>
+# — killall wrapper
 safe_killall() {
   if killall "$1" &>/dev/null; then
     print_success "Restarted $1"
@@ -116,8 +113,7 @@ safe_killall() {
   fi
 }
 
-# ensure_directory <path> [use_sudo]
-# creates directory if missing; use_sudo=true to run via sudo
+# — Ensure directory exists
 ensure_directory() {
   local dir="$1" use_sudo="${2:-false}"
   if [[ ! -d "$dir" ]]; then
@@ -130,8 +126,7 @@ ensure_directory() {
   fi
 }
 
-# download_file <url> <dest-path> <chmod-mode> [use_sudo]
-# fetches via curl and sets file mode
+# — Download file + chmod
 download_file() {
   local url="$1" dest="$2" mode="$3" use_sudo="${4:-false}"
   if [[ "$use_sudo" == true ]]; then
@@ -144,20 +139,18 @@ download_file() {
   print_success "Downloaded $url → $dest"
 }
 
-# bootstrap_launch_agent <plist-path>
-# unload old agent and bootstrap into user’s GUI session
+# — Load a LaunchAgent into user session
 bootstrap_launch_agent() {
   local plist="$1"
   launchctl bootout gui/"$UID" "$plist" &>/dev/null || true
   if launchctl bootstrap gui/"$UID" "$plist"; then
-    print_success "Bootstrapped $plist into user domain"
+    print_success "Bootstrapped $plist"
   else
     print_error "Failed to bootstrap $plist"
   fi
 }
 
-# tm_snapshot <name> <output-file>
-# creates a Time Machine local snapshot and records its name
+# — Create a Time Machine local snapshot
 tm_snapshot() {
   local name="$1" out="$2"
   if sudo tmutil localsnapshot --name "$name"; then

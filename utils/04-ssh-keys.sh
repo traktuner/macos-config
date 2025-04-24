@@ -1,75 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load shared functions
 source "$ROOT_DIR/core/functions.sh"
+print_info "SSH Keyfiles – SMB mount with retry"
 
-print_info "SSH Keyfiles – mounting SMB share with retry"
+SMB="172.16.10.100/tresor/ssh"
+MOUNT="/Volumes/ssh"
+TARGET="$HOME/.ssh"
 
-SMB_SERVER="172.16.10.100/tresor/ssh"
-MOUNT_POINT="/Volumes/ssh"
-TARGET_DIR="$HOME/.ssh"
-MAX_ATTEMPTS=3
+ensure_directory "$TARGET" false
+ensure_directory "$MOUNT" true
 
-# Ensure target ~/.ssh exists
-mkdir -p "$TARGET_DIR"
-
-# Create mount point
-if [[ ! -d "$MOUNT_POINT" ]]; then
-  print_info "Creating mount point $MOUNT_POINT…"
-  sudo mkdir -p "$MOUNT_POINT" \
-    && print_success "Created mount point" \
-    || { print_error "Failed to create mount point"; exit 1; }
-fi
-
-# Unmount any stale mount
-if mount | grep -q "on $MOUNT_POINT "; then
-  print_info "Unmounting stale volume…"
-  sudo umount "$MOUNT_POINT" \
-    && print_success "Unmounted stale volume" \
-    || print_error "Failed to unmount stale volume"
-fi
-
-# Try to mount up to MAX_ATTEMPTS times
+MAX=3
 attempt=1
-while (( attempt <= MAX_ATTEMPTS )); do
-  print_info "Mount attempt $attempt/$MAX_ATTEMPTS"
-  read -p "SMB Username: " SMB_USER
-  read -s -p "SMB Password: " SMB_PASS
-  echo ""
+while (( attempt <= MAX )); do
+  print_info "Mount attempt $attempt/$MAX"
+  read -p "SMB Username: " USER
+  read -s -p "SMB Password: " PASS; echo
 
-  # Attempt mount, capture stderr
-  sudo mount_smbfs "//$SMB_USER:$SMB_PASS@$SMB_SERVER" "$MOUNT_POINT" 2>"/tmp/smb-mount-error.log"
-  rc=$?
-
-  if (( rc == 0 )); then
-    print_success "Mounted SMB share at $MOUNT_POINT"
-    break
-  else
-    err=$(<"/tmp/smb-mount-error.log")
-    print_error "Mount failed (exit code $rc): $err"
-    (( attempt++ ))
-  fi
+  retry 1 0 sudo mount_smbfs "//$USER:$PASS@$SMB" "$MOUNT" \
+    && { print_success "Mounted SMB share"; break; } \
+    || { print_error "Mount failed"; (( attempt++ )); sleep 5; }
 done
 
-if (( attempt > MAX_ATTEMPTS )); then
-  print_error "Unable to mount SMB share after $MAX_ATTEMPTS attempts. Aborting."
-  exit 1
+if (( attempt > MAX )); then
+  print_error "Cannot mount SMB after $MAX attempts"; exit 1
 fi
 
-# Copy SSH keys
-print_info "Copying SSH key files to $TARGET_DIR"
-cp "$MOUNT_POINT"/* "$TARGET_DIR"/ \
-  && print_success "SSH keys copied" \
-  || print_error "Failed to copy SSH keys"
+print_info "Copying SSH keys…"
+cp "$MOUNT"/* "$TARGET"/ && print_success "Copied SSH keys" || print_error "Copy failed"
 
-# Unmount
-print_info "Unmounting $MOUNT_POINT"
-if sudo umount "$MOUNT_POINT"; then
-  print_success "Unmount successful"
-else
-  print_error "Failed to unmount $MOUNT_POINT"
-fi
-
-# Clean up sensitive var
-unset SMB_PASS
+print_info "Unmounting share…"
+sudo umount "$MOUNT" && print_success "Unmounted" || print_error "Unmount failed"

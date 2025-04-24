@@ -1,25 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Verhindere Root-Ausführung
+# Prevent running as root
 if [[ $(id -u) -eq 0 ]]; then
-  echo "❌ Don't run this script as root / sudo!"
+  echo "❌ Please do NOT run bootstrap.sh as root. Aborting."
   exit 1
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR" || { echo "❌ Could not cd to $ROOT_DIR"; exit 1; }
 
-# Gemeinsame Funktionen
+# Load shared functions
 source "$ROOT_DIR/core/functions.sh"
 
-# Export für Subshel­ls
+# Export for subshells
 export ROOT_DIR
 export -f ask_for_confirmation ask_for_sudo answer_is_yes
 export -f print_info print_success print_error
 export -f symlink_from_to modify_file modify_line
 export -f insert_to_file_after_line_number uncomment_line prepend_string_to_file
 export -f line_exists add_config get_arch
+export -f retry safe_defaults_write safe_plistbuddy safe_killall
+export -f ensure_directory download_file bootstrap_launch_agent tm_snapshot
 
 ask_for_sudo
 
