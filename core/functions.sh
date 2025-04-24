@@ -36,25 +36,19 @@ modify_file() {
   [[ ! -f "$3" ]] && print_error "File not found:" "$3" && return 1
   grep -qF "$2" "$3" || awk "/$1/{print;print \"$2\";next}1" "$3" > "$3.tmp" && mv "$3.tmp" "$3"
 }
-
 modify_line() {
   awk "{gsub(\"$1\",\"$2\")}1" "$3" > "$3.tmp" && mv "$3.tmp" "$3"
 }
-
 insert_to_file_after_line_number() {
   awk -v ins="$1" '1; NR=='"$2"'{print ins}' "$3" > "$3.tmp" && mv "$3.tmp" "$3"
 }
-
 uncomment_line() {
   sed -i '' "/$1/s/^#//" "$2"
 }
-
 prepend_string_to_file() {
   printf "%s\n" "$1" | cat - "$2" > "$2.tmp" && mv "$2.tmp" "$2"
 }
-
 line_exists() { grep -qFx "$1" "$2"; }
-
 add_config() {
   local file="$1" path="$2" content="$3" cfg="$path/$file"
   mkdir -p "$path"
@@ -72,4 +66,105 @@ add_config() {
 
 get_arch() {
   [[ "$(uname -m)" == "arm64" ]] && echo arm64 || echo x64
+}
+
+# ——————— NEU: Allgemeine Helfer ——————————————————————————
+
+# retry <max-tries> <delay-seconds> <command...>
+retry() {
+  local -r -i max_tries="${1:-3}"
+  local -r -i delay_secs="${2:-5}"
+  shift 2
+  local -i attempt=1
+  until "$@"; do
+    if (( attempt >= max_tries )); then
+      print_error "Command '$*' failed after $attempt attempts."
+      return 1
+    fi
+    print_error "Attempt $attempt/$max_tries for '$*' failed. Retrying in $delay_secs seconds..."
+    sleep "$delay_secs"
+    (( attempt++ ))
+  done
+  print_success "Command '$*' succeeded on attempt $attempt."
+}
+
+# safe_defaults_write <domain|plist> <key> <type> <value>
+# uses sudo if writing to an absolute path under /Library or /System
+safe_defaults_write() {
+  local target="$1"; shift
+  if [[ "$target" = /* ]]; then
+    sudo defaults write "$target" "$@"
+  else
+    defaults write "$target" "$@"
+  fi
+  [[ $? -ne 0 ]] && print_error "defaults write failed for: $target $*"
+}
+
+# safe_plistbuddy <command> <plist-file>
+safe_plistbuddy() {
+  if ! /usr/libexec/PlistBuddy -c "$1" "$2"; then
+    print_error "PlistBuddy failed: $1 → $2"
+  fi
+}
+
+# safe_killall <process-name>
+safe_killall() {
+  if killall "$1" &>/dev/null; then
+    print_success "Restarted $1"
+  else
+    print_info "$1 was not running"
+  fi
+}
+
+# ensure_directory <path> [use_sudo]
+# creates directory if missing; use_sudo=true to run via sudo
+ensure_directory() {
+  local dir="$1" use_sudo="${2:-false}"
+  if [[ ! -d "$dir" ]]; then
+    if [[ "$use_sudo" == true ]]; then
+      sudo mkdir -p "$dir"
+    else
+      mkdir -p "$dir"
+    fi
+    print_success "Created directory $dir"
+  fi
+}
+
+# download_file <url> <dest-path> <chmod-mode> [use_sudo]
+# fetches via curl and sets file mode
+download_file() {
+  local url="$1" dest="$2" mode="$3" use_sudo="${4:-false}"
+  if [[ "$use_sudo" == true ]]; then
+    sudo curl -fsSL "$url" -o "$dest"
+    sudo chmod "$mode" "$dest"
+  else
+    curl -fsSL "$url" -o "$dest"
+    chmod "$mode" "$dest"
+  fi
+  print_success "Downloaded $url → $dest"
+}
+
+# bootstrap_launch_agent <plist-path>
+# unload old agent and bootstrap into user’s GUI session
+bootstrap_launch_agent() {
+  local plist="$1"
+  launchctl bootout gui/"$UID" "$plist" &>/dev/null || true
+  if launchctl bootstrap gui/"$UID" "$plist"; then
+    print_success "Bootstrapped $plist into user domain"
+  else
+    print_error "Failed to bootstrap $plist"
+  fi
+}
+
+# tm_snapshot <name> <output-file>
+# creates a Time Machine local snapshot and records its name
+tm_snapshot() {
+  local name="$1" out="$2"
+  if sudo tmutil localsnapshot --name "$name"; then
+    print_success "Created TM snapshot: $name"
+    echo "$name" > "$out"
+  else
+    print_error "tmutil snapshot failed"
+    return 1
+  fi
 }
