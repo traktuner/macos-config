@@ -11,9 +11,26 @@ MOUNT_POINT="/Volumes/ssh"
 TARGET_DIR="$HOME/.ssh"
 MAX_ATTEMPTS=3
 
+# 1) Ensure the ~/.ssh folder exists
 mkdir -p "$TARGET_DIR"
 
-# Attempt to mount up to MAX_ATTEMPTS times
+# 2) Prepare the mount point
+if [[ ! -d "$MOUNT_POINT" ]]; then
+  print_info "Creating mount point $MOUNT_POINT…"
+  sudo mkdir -p "$MOUNT_POINT" \
+    && print_success "Created mount point" \
+    || { print_error "Failed to create mount point"; exit 1; }
+fi
+
+# If already mounted, unmount first
+if mount | grep -q "on $MOUNT_POINT "; then
+  print_info "Stale mount found—unmounting first…"
+  sudo umount "$MOUNT_POINT" \
+    && print_success "Unmounted stale volume" \
+    || print_error "Failed to unmount stale volume"
+fi
+
+# 3) Try to mount up to MAX_ATTEMPTS times
 attempt=1
 while (( attempt <= MAX_ATTEMPTS )); do
   print_info "Mount attempt $attempt/$MAX_ATTEMPTS"
@@ -21,31 +38,34 @@ while (( attempt <= MAX_ATTEMPTS )); do
   read -s -p "SMB Password: " SMB_PASS
   echo ""
 
-  # Use mount_smbfs (built-in) and pass password via stdin
-  printf "%s\n" "$SMB_PASS" | mount_smbfs "//$SMB_USER@$SMB_SERVER" "$MOUNT_POINT" &>/dev/null
-  if [[ $? -eq 0 && -d "$MOUNT_POINT" ]]; then
+  # Try mounting (redirect stderr so we can show the error on failure)
+  sudo mount_smbfs "//$SMB_USER:$SMB_PASS@$SMB_SERVER" "$MOUNT_POINT" 2>"/tmp/smb-mount-error.log"
+  rc=$?
+
+  if (( rc == 0 )); then
     print_success "SMB share mounted at $MOUNT_POINT"
     break
   else
-    print_error "Mount failed. Please check your credentials or network."
+    err=$(<"/tmp/smb-mount-error.log")
+    print_error "Mount failed (exit code $rc): $err"
     (( attempt++ ))
   fi
 done
 
-if [[ ! -d "$MOUNT_POINT" ]]; then
+if (( attempt > MAX_ATTEMPTS )); then
   print_error "Unable to mount SMB share after $MAX_ATTEMPTS attempts. Aborting."
   exit 1
 fi
 
-# Copy keys
+# 4) Copy keys
 print_info "Copying SSH key files to $TARGET_DIR"
 cp "$MOUNT_POINT"/* "$TARGET_DIR"/ \
   && print_success "SSH keys copied" \
   || print_error "Failed to copy SSH keys"
 
-# Unmount share
+# 5) Unmount
 print_info "Unmounting $MOUNT_POINT"
-if umount "$MOUNT_POINT" &>/dev/null; then
+if sudo umount "$MOUNT_POINT"; then
   print_success "Unmount successful"
 else
   print_error "Failed to unmount $MOUNT_POINT"
