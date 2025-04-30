@@ -95,7 +95,7 @@ safe_defaults_write com.apple.commerce AutoUpdate -bool true
 
 # Wallpaper
 print_info "Setting default wallpaper"
-osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.png\"" \
+osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.jpeg\"" \
   && print_success "Wallpaper set" \
   || print_error "Failed to set wallpaper"
 

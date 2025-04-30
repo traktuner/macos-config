@@ -53,10 +53,10 @@ done
 print_info "Running brew bundle…"
 retry 3 5 brew bundle --file="$ROOT_DIR/core/Brewfile" || exit 1
 
-# 6) Cleanup / upgrade / update
-retry 2 5 brew cleanup
-retry 2 5 brew upgrade
+# 6) brew maintenance
 retry 2 5 brew update
+retry 2 5 brew upgrade
+retry 2 5 brew cleanup
 
 # 7) Health check
 if brew doctor; then print_success "brew doctor: OK"; else print_error "brew doctor issues"; fi
