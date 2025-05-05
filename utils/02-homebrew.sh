@@ -5,10 +5,9 @@ source "$ROOT_DIR/core/functions.sh"
 print_info "Homebrew setup"
 ask_for_sudo
 
-# install Casks in ~/Applications
-USER_APPDIR="$HOME/Applications"
+# install Casks in /Applications
 ensure_directory "$USER_APPDIR" false
-export HOMEBREW_CASK_OPTS="--appdir=$USER_APPDIR"
+export HOMEBREW_CASK_OPTS="--appdir=/Applications"
 
 # 1) Install Homebrew
 if ! command -v brew &>/dev/null; then
