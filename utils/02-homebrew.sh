@@ -6,7 +6,6 @@ print_info "Homebrew setup"
 ask_for_sudo
 
 # install Casks in /Applications
-ensure_directory "$USER_APPDIR" false
 export HOMEBREW_CASK_OPTS="--appdir=/Applications"
 
 # 1) Install Homebrew
