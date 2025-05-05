@@ -56,16 +56,13 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4) Install custom .mobileconfig from iCloud
+# 4) Install configuration profile from iCloud
 # ─────────────────────────────────────────────────────────────────────────────
 PROFILE_PATH="${CLOUD_DIR}/FamilyConfig.mobileconfig"
 if [[ -f "$PROFILE_PATH" ]]; then
-  print_info "Installing configuration profile: $PROFILE_PATH"
-  if sudo profiles install -path "$PROFILE_PATH"; then
-    print_success "Configuration profile installed"
-  else
-    print_error "Failed to install configuration profile"
-  fi
+  print_info "Opening configuration profile in System Settings…"
+  open "$PROFILE_PATH"
+  print_success "Profile opened; please review and Install in the System Settings UI."
 else
   print_error "No configuration profile found at $PROFILE_PATH; skipping"
 fi
