@@ -54,3 +54,18 @@ else
   print_error "mackup binary not found; ensure you have 'brew install mackup'"
   exit 1
 fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4) Install custom .mobileconfig from iCloud
+# ─────────────────────────────────────────────────────────────────────────────
+PROFILE_PATH="${CLOUD_DIR}/FamilyConfig.mobileconfig"
+if [[ -f "$PROFILE_PATH" ]]; then
+  print_info "Installing configuration profile: $PROFILE_PATH"
+  if sudo profiles install -path "$PROFILE_PATH"; then
+    print_success "Configuration profile installed"
+  else
+    print_error "Failed to install configuration profile"
+  fi
+else
+  print_error "No configuration profile found at $PROFILE_PATH; skipping"
+fi
