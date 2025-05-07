@@ -2,10 +2,10 @@
 set -euo pipefail
 
 source "$ROOT_DIR/core/functions.sh"
-print_info "Homebrew setup"
+print_info "Setting up Homebrew"
 ask_for_sudo
 
-# install Casks in /Applications
+# Install Casks in /Applications
 export HOMEBREW_CASK_OPTS="--appdir=/Applications"
 
 # 1) Install Homebrew
@@ -16,7 +16,7 @@ if ! command -v brew &>/dev/null; then
     "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
     >"$HOMEBREW_LOG" 2>&1 \
     && print_success "Homebrew installed." \
-    || { print_error "Homebrew install failed"; exit 1; }
+    || { print_error "Homebrew installation failed"; exit 1; }
 else
   print_success "Homebrew is already installed."
 fi
@@ -27,19 +27,19 @@ BREW_ENV='eval "$(/opt/homebrew/bin/brew shellenv)"'
 for P in "$HOME/.zprofile" "$HOME/.zshrc"; do
   [[ -f $P ]] || touch "$P"
   grep -Fxq "$BREW_ENV" "$P" || {
-    print_info "Appending brew env to $P"
+    print_info "Adding Homebrew environment to $P"
     printf '\n# Load Homebrew\n%s\n' "$BREW_ENV" >>"$P"
   }
 done
 
 # 3) Taps
-print_info "Tapping GitHub repos…"
+print_info "Tapping repositories…"
 for t in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --tap); do
   retry 3 5 brew tap "$t" || exit 1
 done
 
 # 4) Prefetch
-print_info "Prefetching formulae and casks…"
+print_info "Prefetching formulas and casks…"
 for f in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --formula); do
   retry 3 5 brew fetch "$f" || exit 1
 done
@@ -47,19 +47,19 @@ for c in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --cask); do
   retry 3 5 brew fetch --cask "$c" || exit 1
 done
 
-# Abfrage, ob MAS (Mac App Store) Apps installiert werden sollen
-print_info "Installation von Mac App Store (MAS) Apps"
+# Prompt whether to install Mac App Store (MAS) apps
+print_info "Mac App Store (MAS) App Installation"
 while true; do
-  read -rp "Sollen zusätzlich auch Mac App Store Apps (mas) installiert werden? [ja/nein]: " yn
+  read -rp "Do you want to install Mac App Store apps (mas)? [yes/no]: " yn
   case "${yn,,}" in
     y|j|ja|yes ) INSTALL_MAS_APPS=true; break ;;
-    n|nein|no ) INSTALL_MAS_APPS=false; break ;;
-    * ) echo "Ungültige Eingabe. Bitte 'ja' oder 'nein' eingeben." ;;
+    n|no|nein ) INSTALL_MAS_APPS=false; break ;;
+    * ) echo "Invalid input. Please type 'yes' or 'no'." ;;
   esac
 done
 
-# 5) Install: immer Formulas und Casks, MAS optional
-print_info "Running brew bundle…"
+# 5) Install: always formulas and casks, MAS apps optional
+print_info "Installing from Brewfile…"
 
 if [ "$INSTALL_MAS_APPS" = false ]; then
   TMP_BREWFILE="$(mktemp)"
@@ -70,7 +70,7 @@ else
   retry 3 5 brew bundle --file="$ROOT_DIR/core/Brewfile" || exit 1
 fi
 
-# 6) brew maintenance
+# 6) Brew maintenance
 retry 2 5 brew update
 retry 2 5 brew upgrade
 retry 2 5 brew cleanup
@@ -79,5 +79,5 @@ retry 2 5 brew cleanup
 if brew doctor; then
   print_success "brew doctor: OK"
 else
-  print_error "brew doctor issues"
+  print_error "brew doctor reported issues"
 fi
