@@ -47,9 +47,28 @@ for c in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --cask); do
   retry 3 5 brew fetch --cask "$c" || exit 1
 done
 
-# 5) Install
+# Abfrage, ob MAS (Mac App Store) Apps installiert werden sollen
+print_info "Installation von Mac App Store (MAS) Apps"
+while true; do
+  read -rp "Sollen zusätzlich auch Mac App Store Apps (mas) installiert werden? [ja/nein]: " yn
+  case "${yn,,}" in
+    y|j|ja|yes ) INSTALL_MAS_APPS=true; break ;;
+    n|nein|no ) INSTALL_MAS_APPS=false; break ;;
+    * ) echo "Ungültige Eingabe. Bitte 'ja' oder 'nein' eingeben." ;;
+  esac
+done
+
+# 5) Install: immer Formulas und Casks, MAS optional
 print_info "Running brew bundle…"
-retry 3 5 brew bundle --file="$ROOT_DIR/core/Brewfile" || exit 1
+
+if [ "$INSTALL_MAS_APPS" = false ]; then
+  TMP_BREWFILE="$(mktemp)"
+  grep -v '^mas ' "$ROOT_DIR/core/Brewfile" > "$TMP_BREWFILE"
+  retry 3 5 brew bundle --file="$TMP_BREWFILE" || exit 1
+  rm -f "$TMP_BREWFILE"
+else
+  retry 3 5 brew bundle --file="$ROOT_DIR/core/Brewfile" || exit 1
+fi
 
 # 6) brew maintenance
 retry 2 5 brew update
@@ -57,4 +76,8 @@ retry 2 5 brew upgrade
 retry 2 5 brew cleanup
 
 # 7) Health check
-if brew doctor; then print_success "brew doctor: OK"; else print_error "brew doctor issues"; fi
+if brew doctor; then
+  print_success "brew doctor: OK"
+else
+  print_error "brew doctor issues"
+fi
