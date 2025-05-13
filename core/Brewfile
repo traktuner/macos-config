@@ -23,6 +23,7 @@ cask 'affinity-photo'
 cask 'affinity-designer'
 cask 'affinity-publisher'
 cask 'vlc'
+cask 'topaz-video-ai'
 cask 'beeper'
 cask 'cryptomator'
 cask 'appcleaner'
@@ -34,6 +35,7 @@ cask 'keepingyouawake'
 cask 'shottr'
 cask 'bartender'
 cask 'daisydisk'
+cask 'betterzip'
 cask 'handbrake'
 cask 'utm'
 cask 'mist'
@@ -55,7 +57,6 @@ cask 'citrix-workspace'
 mas 'Logic Pro', id: 634148309
 mas 'Pixelmator Pro', id: 1289583905
 mas 'Vivid', id: 6443470555
-mas 'The Unarchiver', id: 425424353
 mas 'CEWE Fotoservice', id: 1446275768
 mas 'HP Smart', id: 1474276998
 mas 'Speedtest', id: 1153157709
