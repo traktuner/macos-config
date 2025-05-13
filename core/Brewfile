@@ -7,53 +7,64 @@ brew 'git'
 brew 'mackup'
 brew 'tailscale'
 
-# Apps from "Web"
-cask 'warp'
+# Browsers
 cask 'firefox'
 cask 'eloston-chromium', args: { no_quarantine: true }
-cask 'protonvpn'
-cask 'proton-mail'
-cask 'proton-drive'
-cask 'proton-pass'
-cask 'standard-notes'
-cask 'synology-drive'
-cask 'visual-studio-code'
-cask 'darktable', args: { no_quarantine: true }
-cask 'affinity-photo'
-cask 'affinity-designer'
-cask 'affinity-publisher'
-cask 'vlc'
-cask 'topaz-video-ai'
-cask 'beeper'
+cask 'warp'
+
+# Privacy & Security
 cask 'cryptomator'
-cask 'appcleaner'
-cask 'crossover'
-cask 'steam'
-cask 'xemu', args: { no_quarantine: true }
-cask 'spotify'
-cask 'keepingyouawake'
-cask 'shottr'
-cask 'bartender'
-cask 'daisydisk'
-cask 'betterzip'
-cask 'handbrake'
-cask 'utm'
-cask 'mist'
-cask 'crashplan'
-cask 'microsoft-defender'
 cask 'little-snitch'
-cask 'network-share-mounter'
+cask 'microsoft-defender'
 cask 'cleanmymac'
 
-# Apps for Work
-cask 'microsoft-word'
-cask 'microsoft-excel'
-cask 'microsoft-teams'
-cask 'cisco-jabber'
-cask 'webex'
-cask 'citrix-workspace'
+# Proton Suite
+cask 'proton-drive'
+cask 'proton-mail'
+cask 'proton-pass'
+cask 'protonvpn'
+cask 'standard-notes'
 
-# Apps from the App Store
+# Communication & Collaboration
+cask 'beeper'
+cask 'cisco-jabber'
+cask 'citrix-workspace'
+cask 'microsoft-teams'
+cask 'webex'
+
+# Productivity
+cask 'warp'
+cask 'keepingyouawake'
+cask 'shottr'
+cask 'synology-drive'
+cask 'visual-studio-code'
+cask 'network-share-mounter'
+cask 'libreoffice'
+
+# Media & Creativity
+cask 'affinity-designer'
+cask 'affinity-photo'
+cask 'affinity-publisher'
+cask 'darktable', args: { no_quarantine: true }
+cask 'topaz-video-ai'
+cask 'handbrake'
+cask 'vlc'
+
+# Backup & Maintenance
+cask 'appcleaner'
+cask 'bartender'
+cask 'betterzip'
+cask 'daisydisk'
+cask 'crashplan'
+
+# Emulation & Gaming
+cask 'utm'
+cask 'xemu', args: { no_quarantine: true }
+cask 'crossover'
+cask 'steam'
+
+# App Store
+# Core Apps
 mas 'Logic Pro', id: 634148309
 mas 'Pixelmator Pro', id: 1289583905
 mas 'Vivid', id: 6443470555
@@ -63,7 +74,7 @@ mas 'Speedtest', id: 1153157709
 
 # Extensions
 mas '1Blocker', id: 1365531024
-mas 'StopTheMadness Pro', id: 6471380298
 mas 'Noir', id: 1592917505
-mas 'Wayback Machine', id: 1472432422
 mas 'Proton Pass for Safari', id: 6502835663
+mas 'StopTheMadness Pro', id: 6471380298
+mas 'Wayback Machine', id: 1472432422
