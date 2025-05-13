@@ -22,15 +22,24 @@ else
 fi
 
 # 2) Init and persist shellenv
-eval "$(/opt/homebrew/bin/brew shellenv)"
-BREW_ENV='eval "$(/opt/homebrew/bin/brew shellenv)"'
-for P in "$HOME/.zprofile" "$HOME/.zshrc"; do
-  [[ -f $P ]] || touch "$P"
-  grep -Fxq "$BREW_ENV" "$P" || {
-    print_info "Adding Homebrew environment to $P"
-    printf '\n# Load Homebrew\n%s\n' "$BREW_ENV" >>"$P"
-  }
-done
+- eval "$(/opt/homebrew/bin/brew shellenv)"
+-
+- BREW_ENV_CMD='eval "$(/opt/homebrew/bin/brew shellenv)"'
+- for PROFILE in "$HOME/.zprofile" "$HOME/.zshrc"; do
++ # 2a) For this running script
++ eval "$(/opt/homebrew/bin/brew shellenv)"
++
++ # 2b) For all future zsh sessions, inject into both login and non-login shells
++ BREW_SHELLENV='eval "$(/opt/homebrew/bin/brew shellenv)"'
++ for PROFILE in "$HOME/.zprofile" "$HOME/.zshenv"; do
+     [[ -f $PROFILE ]] || touch "$PROFILE"
+     if ! grep -Fxq "$BREW_SHELLENV" "$PROFILE"; then
+       print_info "Appending Homebrew shellenv to $PROFILE"
+       printf '\n# Load Homebrew\n%s\n' "$BREW_SHELLENV" >>"$PROFILE"
+       print_success "Appended brew shellenv to $PROFILE"
+     fi
+   done
+
 
 # 3) Taps
 print_info "Tapping repositories…"
