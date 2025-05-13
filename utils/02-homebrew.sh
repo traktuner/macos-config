@@ -51,7 +51,8 @@ done
 print_info "Mac App Store (MAS) App Installation"
 while true; do
   read -rp "Do you want to install Mac App Store apps (mas)? [yes/no]: " yn
-  case "${yn,,}" in
+  yn_lower=$(echo "$yn" | tr '[:upper:]' '[:lower:]')
+  case "$yn_lower" in
     y|j|ja|yes ) INSTALL_MAS_APPS=true; break ;;
     n|no|nein ) INSTALL_MAS_APPS=false; break ;;
     * ) echo "Invalid input. Please type 'yes' or 'no'." ;;
