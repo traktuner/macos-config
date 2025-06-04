@@ -55,7 +55,10 @@ prepend_string_to_file() {
 }
 line_exists() { grep -qFx "$1" "$2"; }
 add_config() {
-  local file="$1" path="$2" content="$3" cfg="$path/$file"
+  local file="$1"
+  local path="$2"
+  local content="$3"
+  local cfg="$path/$file"
   mkdir -p "$path"
   if [[ -f "$cfg" ]]; then
     while IFS= read -r line; do
