@@ -4,7 +4,6 @@ tap 'traktuner/traktuner'
 # Utilities
 brew 'mas'
 brew 'git'
-brew 'mackup'
 brew 'tailscale'
 
 # Browsers
