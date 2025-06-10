@@ -39,7 +39,9 @@ cask 'shottr'
 cask 'synology-drive'
 cask 'visual-studio-code'
 cask 'network-share-mounter'
-cask 'libreoffice'
+cask 'imazing-profile-editor'
+cask 'microsoft-word'
+cask 'microsoft-excel'
 
 # Media & Creativity
 cask 'affinity-designer'

@@ -42,18 +42,23 @@ for script in "${UTILS[@]}"; do
   echo "  $i) Run $(basename "$script")"
   ((i++))
 done
+# --- MODIFICATION START: Updated menu text ---
+echo "  *) You can also enter a range (e.g., 1-3) or a list (e.g., 1,3,7)"
 echo "  q) Quit"
 echo
+# --- MODIFICATION END ---
 
 # Handle choice
 while true; do
-  read -p "Enter choice [0-$((i-1)), q]: " choice
+  # --- MODIFICATION START: Updated prompt text ---
+  read -p "Enter choice [0-$((i - 1)), 1-3, 1,3,7, q]: " choice
+  # --- MODIFICATION END ---
   case "$choice" in
-    [Qq] )
+    [Qq])
       echo "Goodbye!"
       exit 0
       ;;
-    0 )
+    0)
       print_info "Running all setup scripts…"
       for script in "${UTILS[@]}"; do
         print_info "➡️  $(basename "$script")"
@@ -61,18 +66,92 @@ while true; do
       done
       break
       ;;
-    ''|*[!0-9]*)
-      echo "Invalid choice.";;
+    # --- MODIFICATION START: New logic for ranges and lists ---
     *)
-      if (( choice >= 1 && choice < i )); then
-        sel_script="${UTILS[choice-1]}"
-        print_info "Running $(basename "$sel_script")…"
-        bash "$sel_script" || print_error "Failed: $(basename "$sel_script")"
-        break
+      # Array to hold the final list of scripts to execute
+      declare -a scripts_to_run=()
+      # Flag to track if the input is valid
+      is_valid=true
+
+      # Process the input. Replace commas with spaces to loop through items.
+      # This handles inputs like "1,3,5-7" correctly.
+      for item in ${choice//,/ }; do
+        # Check if the item is a range (e.g., "2-4")
+        if [[ "$item" =~ ^[0-9]+-[0-9]+$ ]]; then
+          start=$(echo "$item" | cut -d'-' -f1)
+          end=$(echo "$item" | cut -d'-' -f2)
+
+          if ((start > end)); then
+            print_error "Invalid range '$item': Start number is greater than end number."
+            is_valid=false
+            break
+          fi
+
+          # Add all numbers in the range to our list
+          for num in $(seq "$start" "$end"); do
+            scripts_to_run+=("$num")
+          done
+        # Check if the item is a single number
+        elif [[ "$item" =~ ^[0-9]+$ ]]; then
+          scripts_to_run+=("$item")
+        # If it's neither, the input is invalid
+        else
+          print_error "Invalid input: '$item' is not a valid number or range."
+          is_valid=false
+          break
+        fi
+      done
+
+      # If the input was invalid at any point, restart the loop
+      if ! $is_valid; then
+        continue
+      fi
+
+      # Get unique script paths to avoid running a script multiple times
+      # and validate that all numbers are within the allowed range.
+      declare -a final_script_paths=()
+      is_valid=true
+      # Use an associative array to track uniqueness
+      declare -A seen
+
+      for num in "${scripts_to_run[@]}"; do
+        # Validate if the number is within the script range
+        if ((num < 1 || num >= i)); then
+          print_error "Choice '$num' is out of range (must be between 1 and $((i - 1)))."
+          is_valid=false
+          break
+        fi
+
+        # Convert 1-based menu number to 0-based array index
+        index=$((num - 1))
+        sel_script="${UTILS[index]}"
+
+        # Add script to the final list only if it hasn't been added yet
+        if [[ -z "${seen[$sel_script]+_}" ]]; then
+            final_script_paths+=("$sel_script")
+            seen["$sel_script"]=1
+        fi
+      done
+
+      # If validation failed, restart the loop
+      if ! $is_valid; then
+        continue
+      fi
+
+      # If we have scripts to run, execute them
+      if [ ${#final_script_paths[@]} -gt 0 ]; then
+        print_info "Running selected setup scripts…"
+        for script in "${final_script_paths[@]}"; do
+          print_info "➡️  $(basename "$script")"
+          bash "$script" || print_error "Failed: $(basename "$script")"
+        done
+        break # Exit the while loop after successful execution
       else
-        echo "Choice out of range."
+        # This case is for empty input or other edge cases
+        print_error "No valid scripts selected."
       fi
       ;;
+      # --- MODIFICATION END ---
   esac
 done
 
