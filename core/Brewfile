@@ -8,7 +8,8 @@ brew 'tailscale'
 
 # Browsers
 cask 'firefox'
-cask 'eloston-chromium', args: { no_quarantine: true }
+cask 'librewolf'
+cask 'ungoogled-chromium', args: { no_quarantine: true }
 cask 'warp'
 
 # Privacy & Security
@@ -50,6 +51,7 @@ cask 'darktable', args: { no_quarantine: true }
 cask 'topaz-video-ai'
 cask 'handbrake'
 cask 'vlc'
+cask 'jellyfin-media-player'
 
 # Backup & Maintenance
 cask 'appcleaner'
