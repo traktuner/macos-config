@@ -5,12 +5,11 @@ tap 'traktuner/traktuner'
 brew 'mas'
 brew 'git'
 brew 'tailscale'
+brew 'chatgpt'
 
 # Browsers
 cask 'firefox'
-cask 'librewolf'
 cask 'ungoogled-chromium', args: { no_quarantine: true }
-cask 'warp'
 
 # Privacy & Security
 cask 'cryptomator'
