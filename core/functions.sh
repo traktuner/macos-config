@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# — Logging
+LOG_FILE="/tmp/macos-config.log"
+log_message() {
+  local level="$1" message="$2"
+  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
+}
+
 # — User Prompts
 answer_is_yes()    { [[ "$REPLY" =~ ^[Yy]$ ]]; }
 ask_for_confirmation() {
@@ -13,9 +21,25 @@ ask_for_sudo() {
 }
 
 # — Print Helpers
-print_info()    { printf "\n\e[0;34m 👊  %s\e[0m\n"  "$1"; }
-print_success() { printf "\e[0;32m 👍  %s\e[0m\n"   "$1"; }
-print_error()   { printf "\e[0;31m 😡  %s\e[0m\n"   "$1"; }
+print_info()    { 
+  printf "\n\e[0;34m 👊  %s\e[0m\n"  "$1"
+  log_message "INFO" "$1"
+}
+print_success() { 
+  printf "\e[0;32m 👍  %s\e[0m\n"   "$1"
+  log_message "SUCCESS" "$1"
+}
+print_error()   { 
+  printf "\e[0;31m 😡  %s\e[0m\n"   "$1"
+  log_message "ERROR" "$1"
+}
+
+# — System Information
+get_system_info() {
+  echo "macOS $(sw_vers -productVersion) ($(uname -m))"
+  echo "User: $(whoami)"
+  echo "Home: $HOME"
+}
 
 # — Symlink with Confirmation
 symlink_from_to() {
@@ -174,6 +198,23 @@ tm_snapshot() {
     echo "$name" > "$out"
   else
     print_error "tmutil snapshot failed"
+    return 1
+  fi
+}
+
+# — Check if command exists
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# — Check macOS version
+check_macos_version() {
+  local required_version="$1"
+  local current_version=$(sw_vers -productVersion)
+  if [[ "$(echo -e "$required_version\n$current_version" | sort -V | head -n1)" == "$required_version" ]]; then
+    return 0
+  else
+    print_error "macOS $required_version or higher required. Current: $current_version"
     return 1
   fi
 }

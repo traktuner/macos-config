@@ -12,6 +12,7 @@ SMB_PATH="172.16.10.100/tresor/ssh"
 MOUNT_POINT="/Volumes/ssh"
 TARGET_DIR="$HOME/.ssh"
 TIMEOUT=30
+SSH_PERMS=600
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) Prompt for credentials
@@ -20,10 +21,18 @@ read -p "Please enter your SMB username: " SMB_USER
 read -s -p "Please enter your SMB password: " SMB_PASS
 echo
 
+# Validate input
+if [[ -z "$SMB_USER" || -z "$SMB_PASS" ]]; then
+  print_error "Username and password cannot be empty"
+  exit 1
+fi
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 2) Ensure target dir exists
+# 2) Ensure target dir exists with proper permissions
 # ─────────────────────────────────────────────────────────────────────────────
 ensure_directory "${TARGET_DIR}" false
+chmod 700 "${TARGET_DIR}"
+print_success "SSH directory prepared with correct permissions"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3) Unmount stale share if present
@@ -63,8 +72,40 @@ print_success "SMB share mounted at ${MOUNT_POINT}"
 # ─────────────────────────────────────────────────────────────────────────────
 if compgen -G "${MOUNT_POINT}/*" > /dev/null; then
   print_info "Copying SSH keys to ${TARGET_DIR}…"
+  
+  # Create backup of existing keys
+  if [[ -d "${TARGET_DIR}" && "$(ls -A "${TARGET_DIR}" 2>/dev/null)" ]]; then
+    BACKUP_DIR="${TARGET_DIR}.backup.$(date +%Y%m%d_%H%M%S)"
+    print_info "Creating backup of existing keys in ${BACKUP_DIR}"
+    cp -R "${TARGET_DIR}" "${BACKUP_DIR}"
+  fi
+  
+  # Copy new keys
   if sudo cp -R "${MOUNT_POINT}"/* "${TARGET_DIR}/"; then
     print_success "SSH keys copied"
+    
+    # Set correct permissions on SSH files
+    print_info "Setting correct permissions on SSH files..."
+    find "${TARGET_DIR}" -type f -name "id_*" -exec chmod ${SSH_PERMS} {} \;
+    find "${TARGET_DIR}" -type f -name "*.pub" -exec chmod 644 {} \;
+    find "${TARGET_DIR}" -type f -name "known_hosts" -exec chmod 644 {} \;
+    find "${TARGET_DIR}" -type f -name "config" -exec chmod 600 {} \;
+    
+    print_success "SSH key permissions set correctly"
+    
+    # Verify SSH key functionality
+    if command_exists ssh-keygen; then
+      print_info "Verifying SSH key functionality..."
+      for key in "${TARGET_DIR}"/id_*; do
+        if [[ -f "$key" && ! "$key" =~ \.pub$ ]]; then
+          if ssh-keygen -y -f "$key" >/dev/null 2>&1; then
+            print_success "SSH key $(basename "$key") is valid"
+          else
+            print_error "SSH key $(basename "$key") appears to be invalid"
+          fi
+        fi
+      done
+    fi
   else
     print_error "Failed to copy SSH keys"
   fi
@@ -91,3 +132,4 @@ fi
 # 8) Clean up sensitive data
 # ─────────────────────────────────────────────────────────────────────────────
 unset SMB_PASS
+print_success "SSH keys setup completed successfully"

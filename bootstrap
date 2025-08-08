@@ -23,6 +23,24 @@ export -f line_exists add_config get_arch
 export -f retry safe_defaults_write safe_plistbuddy safe_killall
 export -f ensure_directory download_file bootstrap_launch_agent tm_snapshot
 
+# System validation
+print_info "Validating system requirements..."
+if ! check_macos_version "13.0"; then
+  print_error "This script requires macOS 13.0 or higher"
+  exit 1
+fi
+
+print_info "System information:"
+get_system_info
+
+# Check for required commands
+for cmd in curl git; do
+  if ! command_exists "$cmd"; then
+    print_error "Required command '$cmd' not found"
+    exit 1
+  fi
+done
+
 ask_for_sudo
 
 print_info "Welcome to your macOS setup bootstrap!"
@@ -156,4 +174,5 @@ while true; do
 done
 
 print_success "Done! You can now close this terminal."
+print_info "Log file available at: $LOG_FILE"
 exec bash

@@ -12,6 +12,14 @@ export HOMEBREW_CASK_OPTS="--appdir=/Applications"
 if ! command -v brew &>/dev/null; then
   HOMEBREW_LOG="/tmp/homebrew-install.log"
   print_info "Installing Homebrew… (log → $HOMEBREW_LOG)"
+  
+  # Determine Homebrew path based on architecture
+  if [[ "$(get_arch)" == "arm64" ]]; then
+    HOMEBREW_PREFIX="/opt/homebrew"
+  else
+    HOMEBREW_PREFIX="/usr/local"
+  fi
+  
   retry 3 10 env NONINTERACTIVE=1 /bin/bash -c \
     "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
     >"$HOMEBREW_LOG" 2>&1 \
@@ -23,10 +31,15 @@ fi
 
 # 2) Init and persist shellenv
 # a) in this script:
-eval "$(/opt/homebrew/bin/brew shellenv)"
+if [[ "$(get_arch)" == "arm64" ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+  BREW_SHELLENV='eval "$(/opt/homebrew/bin/brew shellenv)"'
+else
+  eval "$(/usr/local/bin/brew shellenv)"
+  BREW_SHELLENV='eval "$(/usr/local/bin/brew shellenv)"'
+fi
 
 # b) for all future zsh sessions:
-BREW_SHELLENV='eval "$(/opt/homebrew/bin/brew shellenv)"'
 for PROFILE in "$HOME/.zprofile" "$HOME/.zshenv"; do
   [[ -f $PROFILE ]] || touch "$PROFILE"
   if ! grep -Fxq "$BREW_SHELLENV" "$PROFILE"; then
@@ -35,7 +48,6 @@ for PROFILE in "$HOME/.zprofile" "$HOME/.zshenv"; do
     print_success "Appended brew shellenv to $PROFILE"
   fi
 done
-
 
 # 3) Taps
 print_info "Tapping repositories…"
@@ -87,3 +99,13 @@ if brew doctor; then
 else
   print_error "brew doctor reported issues"
 fi
+
+# 8) Post-installation verification
+print_info "Verifying key installations..."
+for app in "Visual Studio Code" "Firefox" "Warp"; do
+  if [[ -d "/Applications/$app.app" ]]; then
+    print_success "$app installed successfully"
+  else
+    print_error "$app not found in /Applications"
+  fi
+done

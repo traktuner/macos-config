@@ -5,11 +5,24 @@ source "$ROOT_DIR/core/functions.sh"
 
 print_info "Running PRE-FLIGHT tasks: snapshot, CrashPlan & toggleAirport"
 
-# 0) Snapshot
+# 0) Snapshot - Create a safety snapshot before making changes
 TIMESTAMP="$(date +%F_%T)"
-SNAPSHOT_NAME="preflight-${TIMESTAMP}"
-SNAPSHOT_FILE="/tmp/preflight_snapshot_name"
+SNAPSHOT_NAME="macos-config-${TIMESTAMP}"
+SNAPSHOT_FILE="/tmp/macos_config_snapshot_name"
+
+print_info "Creating Time Machine snapshot: $SNAPSHOT_NAME"
+print_info "This snapshot will allow you to rollback all changes if needed"
 tm_snapshot "$SNAPSHOT_NAME" "$SNAPSHOT_FILE"
+
+# Display snapshot info
+if [[ -f "$SNAPSHOT_FILE" ]]; then
+  SNAPSHOT_CREATED=$(cat "$SNAPSHOT_FILE")
+  print_success "Safety snapshot created: $SNAPSHOT_CREATED"
+  print_info "To restore this snapshot later, run: sudo tmutil restore '$SNAPSHOT_CREATED'"
+else
+  print_error "Failed to create snapshot"
+  exit 1
+fi
 
 # 1) CrashPlan
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,3 +49,6 @@ ensure_directory "/Library/LaunchAgents" true
 download_file "https://gist.githubusercontent.com/traktuner/8431e9daf006c0c1d246b8a4766f15b4/raw/com.mine.toggleairport.plist" "$PLIST" 600 true
 
 bootstrap_launch_agent "$PLIST"
+
+print_success "Pre-flight tasks completed successfully"
+print_info "System is ready for configuration changes"

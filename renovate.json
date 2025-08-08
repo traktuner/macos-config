@@ -2,5 +2,37 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
-  ]
+  ],
+  "schedule": ["before 6am on monday"],
+  "timezone": "Europe/Berlin",
+  "packageRules": [
+    {
+      "matchPackageNames": ["homebrew"],
+      "enabled": false
+    },
+    {
+      "matchPackagePatterns": ["^brew "],
+      "groupName": "Homebrew packages",
+      "groupSlug": "homebrew"
+    },
+    {
+      "matchPackagePatterns": ["^cask "],
+      "groupName": "Homebrew casks",
+      "groupSlug": "homebrew-casks"
+    },
+    {
+      "matchPackagePatterns": ["^mas "],
+      "groupName": "Mac App Store apps",
+      "groupSlug": "mas-apps"
+    }
+  ],
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageAction": "update",
+  "commitMessageTopic": "{{depName}}",
+  "commitMessageExtra": "to {{newVersion}}",
+  "labels": ["dependencies", "automated"],
+  "assignees": ["@traktuner"],
+  "reviewers": ["@traktuner"],
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5
 }
