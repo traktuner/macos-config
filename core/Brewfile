@@ -41,6 +41,7 @@ cask 'network-share-mounter'
 cask 'imazing-profile-editor'
 cask 'microsoft-word'
 cask 'microsoft-excel'
+cask '2fhey'
 
 # Media & Creativity
 cask 'affinity-designer'
