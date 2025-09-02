@@ -96,6 +96,8 @@ while true; do
       exit 0
       ;;
     0)
+      # Initialize final_script_paths for this case to prevent unbound variable errors
+      final_script_paths=()
       print_info "Running all setup scripts…"
       for script in "${UTILS[@]}"; do
         print_info "➡️  $(basename "$script")"
