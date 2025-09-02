@@ -111,6 +111,8 @@ while true; do
       scripts_to_run=()
       # Flag to track if the input is valid
       is_valid=true
+      # Initialize final_script_paths early to prevent unbound variable errors
+      final_script_paths=()
 
       # Process the input. Replace commas with spaces to loop through items.
       # This handles inputs like "1,3,5-7" correctly.
@@ -148,7 +150,6 @@ while true; do
 
       # Get unique script paths to avoid running a script multiple times
       # and validate that all numbers are within the allowed range.
-      final_script_paths=()
       is_valid=true
       # Use a simple string-based approach to track uniqueness (Bash 3.2 compatible)
       for num in "${scripts_to_run[@]}"; do
