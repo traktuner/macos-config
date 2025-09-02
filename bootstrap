@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 # Prevent running as root
 if [[ $(id -u) -eq 0 ]]; then
