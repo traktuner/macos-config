@@ -5,7 +5,6 @@ tap 'traktuner/traktuner'
 brew 'mas'
 brew 'git'
 brew 'tailscale'
-brew 'chatgpt'
 
 # Browsers
 cask 'firefox'
@@ -44,6 +43,7 @@ cask 'imazing-profile-editor'
 cask 'microsoft-word'
 cask 'microsoft-excel'
 cask '2fhey'
+cask 'chatgpt'
 
 # Media & Creativity
 cask 'affinity-designer'
