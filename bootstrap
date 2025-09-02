@@ -51,6 +51,10 @@ for f in "$ROOT_DIR/utils"/*.sh; do
   UTILS+=("$f")
 done
 
+# Initialize arrays to prevent unbound variable errors
+declare -a final_script_paths=()
+declare -a scripts_to_run=()
+
 # Display menu
 echo
 echo "Please choose an action:"
@@ -86,8 +90,6 @@ while true; do
       ;;
     # --- MODIFICATION START: New logic for ranges and lists ---
     *)
-      # Array to hold the final list of scripts to execute
-      declare -a scripts_to_run=()
       # Flag to track if the input is valid
       is_valid=true
 
@@ -127,7 +129,6 @@ while true; do
 
       # Get unique script paths to avoid running a script multiple times
       # and validate that all numbers are within the allowed range.
-      declare -a final_script_paths=()
       is_valid=true
       # Use a simple string-based approach to track uniqueness (Bash 3.2 compatible)
       for num in "${scripts_to_run[@]}"; do
