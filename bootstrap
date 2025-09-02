@@ -90,9 +90,13 @@ while true; do
       ;;
     # --- MODIFICATION START: New logic for ranges and lists ---
     *)
-      # Clear arrays for this iteration
+      # Clear arrays for this iteration and ensure they are properly initialized
       final_script_paths=()
       scripts_to_run=()
+      
+      # Explicitly declare as empty arrays to prevent unbound variable issues
+      declare -a final_script_paths=()
+      declare -a scripts_to_run=()
       
       # Flag to track if the input is valid
       is_valid=true
@@ -134,7 +138,16 @@ while true; do
       # Get unique script paths to avoid running a script multiple times
       # and validate that all numbers are within the allowed range.
       is_valid=true
+      
+      # Check if we have any scripts to process
+      if [ ${#scripts_to_run[@]} -eq 0 ]; then
+        print_error "No valid scripts selected."
+        continue
+      fi
+      
       # Use a simple string-based approach to track uniqueness (Bash 3.2 compatible)
+      # Ensure scripts_to_run is properly initialized
+      scripts_to_run=("${scripts_to_run[@]:-}")
       for num in "${scripts_to_run[@]}"; do
         # Validate if the number is within the script range
         if ((num < 1 || num >= i)); then
