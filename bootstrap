@@ -129,9 +129,7 @@ while true; do
       # and validate that all numbers are within the allowed range.
       declare -a final_script_paths=()
       is_valid=true
-      # Use an associative array to track uniqueness
-      declare -A seen
-
+      # Use a simple string-based approach to track uniqueness (Bash 3.2 compatible)
       for num in "${scripts_to_run[@]}"; do
         # Validate if the number is within the script range
         if ((num < 1 || num >= i)); then
@@ -145,9 +143,17 @@ while true; do
         sel_script="${UTILS[index]}"
 
         # Add script to the final list only if it hasn't been added yet
-        if [[ -z "${seen[$sel_script]+_}" ]]; then
+        # Use a simple string search instead of associative array
+        is_duplicate=false
+        for existing_script in "${final_script_paths[@]}"; do
+          if [[ "$existing_script" == "$sel_script" ]]; then
+            is_duplicate=true
+            break
+          fi
+        done
+        
+        if [[ "$is_duplicate" == "false" ]]; then
             final_script_paths+=("$sel_script")
-            seen["$sel_script"]=1
         fi
       done
 
