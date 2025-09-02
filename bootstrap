@@ -90,6 +90,10 @@ while true; do
       ;;
     # --- MODIFICATION START: New logic for ranges and lists ---
     *)
+      # Clear arrays for this iteration
+      final_script_paths=()
+      scripts_to_run=()
+      
       # Flag to track if the input is valid
       is_valid=true
 
