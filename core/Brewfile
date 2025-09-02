@@ -78,7 +78,7 @@ mas 'Speedtest', id: 1153157709
 mas 'Apple Configurator ', id:1037126344
 
 # Extensions
-mas '1Blocker', id: 1365531024
+mas 'uBlock Origin Lite', id: 6745342698
 mas 'Noir', id: 1592917505
 mas 'Proton Pass for Safari', id: 6502835663
 mas 'StopTheMadness Pro', id: 6471380298
