@@ -162,6 +162,8 @@ while true; do
 
         # Add script to the final list only if it hasn't been added yet
         # Use a simple string search instead of associative array
+        # Ensure final_script_paths is properly initialized
+        final_script_paths=("${final_script_paths[@]:-}")
         is_duplicate=false
         for existing_script in "${final_script_paths[@]}"; do
           if [[ "$existing_script" == "$sel_script" ]]; then
