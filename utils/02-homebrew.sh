@@ -7,6 +7,7 @@ ask_for_sudo
 
 # Install Casks in /Applications
 export HOMEBREW_CASK_OPTS="--appdir=/Applications"
+export HOMEBREW_NO_QUARANTINE="1"
 
 # 1) Install Homebrew
 if ! command -v brew &>/dev/null; then
