@@ -8,7 +8,7 @@ brew 'tailscale'
 
 # Browsers
 cask 'firefox'
-cask 'ungoogled-chromium', args: { no_quarantine: true }
+cask 'ungoogled-chromium'
 
 # Privacy & Security
 cask 'cryptomator'
@@ -34,7 +34,6 @@ cask 'webex'
 cask 'warp'
 cask 'keepingyouawake'
 cask 'shottr'
- #cask 'synology-drive'
 cask 'opencloud'
 cask 'cursor'
 cask 'visual-studio-code'
@@ -43,27 +42,25 @@ cask 'imazing-profile-editor'
 cask 'microsoft-word'
 cask 'microsoft-excel'
 cask '2fhey'
-cask 'chatgpt'
 
 # Media & Creativity
 cask 'affinity-designer'
 cask 'affinity-photo'
 cask 'affinity-publisher'
-cask 'darktable', args: { no_quarantine: true }
-cask 'topaz-video-ai'
+# cask 'darktable'
+# cask 'topaz-video-ai'
 cask 'vlc'
 cask 'jellyfin-media-player'
 
 # Backup & Maintenance
 cask 'appcleaner'
-cask 'bartender'
+# cask 'bartender'
 cask 'betterzip'
 cask 'daisydisk'
 cask 'crashplan'
 
 # Emulation & Gaming
 cask 'utm'
-cask 'xemu', args: { no_quarantine: true }
 cask 'crossover'
 cask 'steam'
 
