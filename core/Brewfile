@@ -14,7 +14,7 @@ cask 'ungoogled-chromium'
 cask 'cryptomator'
 cask 'little-snitch'
 cask 'microsoft-defender'
-cask 'cleanmymac'
+# cask 'cleanmymac'
 
 # Proton Suite
 # cask 'proton-drive'
