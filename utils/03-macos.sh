@@ -93,6 +93,16 @@ safe_defaults_write com.apple.SoftwareUpdate AutomaticDownload -int 1
 safe_defaults_write com.apple.SoftwareUpdate CriticalUpdateInstall -int 1
 safe_defaults_write com.apple.commerce AutoUpdate -bool true
 
+# Safari
+safe_defaults_write com.apple.Safari SearchProviderIdentifier -string "com.ecosia"
+safe_defaults_write com.apple.Safari PreloadTopHit -bool false
+safe_defaults_write com.apple.Safari AutoOpenSafeDownloads -bool false
+safe_defaults_write com.apple.Safari SendDoNotTrackHTTPHeader -bool true
+safe_defaults_write com.apple.Safari WarnAboutFraudulentWebsites -bool true
+safe_defaults_write com.apple.Safari WebKitJavaScriptCanOpenWindowsAutomatically -bool false
+safe_defaults_write com.apple.Safari SafariGeolocationPermissionPolicy -int 0
+safe_defaults_write com.apple.Safari TargetedClicksCreateTabs -bool true
+
 # Wallpaper
 print_info "Setting default wallpaper"
 osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.jpeg\"" \
