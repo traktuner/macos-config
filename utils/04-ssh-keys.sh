@@ -86,10 +86,14 @@ if compgen -G "${MOUNT_POINT}/*" > /dev/null; then
     
     # Set correct permissions on SSH files
     print_info "Setting correct permissions on SSH files..."
-    find "${TARGET_DIR}" -type f -name "id_*" -exec chmod ${SSH_PERMS} {} \;
-    find "${TARGET_DIR}" -type f -name "*.pub" -exec chmod 644 {} \;
-    find "${TARGET_DIR}" -type f -name "known_hosts" -exec chmod 644 {} \;
-    find "${TARGET_DIR}" -type f -name "config" -exec chmod 600 {} \;
+    find "${TARGET_DIR}" -type f -name "id_*" -exec sudo chmod ${SSH_PERMS} {} \;
+    find "${TARGET_DIR}" -type f -name "*.pub" -exec sudo chmod 644 {} \;
+    find "${TARGET_DIR}" -type f -name "known_hosts" -exec sudo chmod 644 {} \;
+    find "${TARGET_DIR}" -type f -name "config" -exec sudo chmod 600 {} \;
+    
+    # Change ownership back to the current user
+    print_info "Changing ownership of SSH files to current user..."
+    sudo chown -R "$(whoami):$(id -gn)" "${TARGET_DIR}"
     
     print_success "SSH key permissions set correctly"
     
