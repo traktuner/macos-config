@@ -39,8 +39,7 @@ cask 'cursor'
 cask 'visual-studio-code'
 cask 'network-share-mounter'
 cask 'imazing-profile-editor'
-cask 'microsoft-word'
-cask 'microsoft-excel'
+cask 'libreoffice'
 cask '2fhey'
 
 # Media & Creativity
