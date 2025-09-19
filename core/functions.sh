@@ -232,8 +232,29 @@ request_full_disk_access() {
   ask_for_confirmation "Have you enabled Full Disk Access for Terminal?"
   
   if answer_is_yes; then
-    # Test if Full Disk Access is working by trying to access a system file
-    if [[ -r "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" ]]; then
+    # Test Full Disk Access using the standard method most apps use
+    local fda_enabled=false
+    
+    # Primary method: Try to access Mail Envelope Index (standard FDA test)
+    if [[ -r "$HOME/Library/Mail/V10/MailData/Envelope Index" ]]; then
+      fda_enabled=true
+    fi
+    
+    # Fallback method: Try to access TCC database
+    if [[ "$fda_enabled" == "false" && -r "$HOME/Library/Application Support/com.apple.TCC/TCC.db" ]]; then
+      fda_enabled=true
+    fi
+    
+    # Additional fallback: Try a simple defaults write that requires FDA
+    if [[ "$fda_enabled" == "false" ]]; then
+      print_info "Testing Full Disk Access with a defaults write command..."
+      if defaults write com.apple.finder TestFDA -bool true 2>/dev/null; then
+        defaults delete com.apple.finder TestFDA 2>/dev/null
+        fda_enabled=true
+      fi
+    fi
+    
+    if [[ "$fda_enabled" == "true" ]]; then
       print_success "Full Disk Access is enabled!"
       return 0
     else
