@@ -218,3 +218,31 @@ check_macos_version() {
     return 1
   fi
 }
+
+# — Request Full Disk Access for Terminal
+request_full_disk_access() {
+  print_info "Full Disk Access is required for Terminal..."
+  print_info "Opening System Preferences to Privacy & Security..."
+  
+  # Open System Preferences directly to Privacy & Security
+  open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+  
+  print_info "Please enable Terminal in the Full Disk Access list, then return here."
+  echo
+  ask_for_confirmation "Have you enabled Full Disk Access for Terminal?"
+  
+  if answer_is_yes; then
+    # Test if Full Disk Access is working by trying to access a system file
+    if [[ -r "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" ]]; then
+      print_success "Full Disk Access is enabled!"
+      return 0
+    else
+      print_error "Full Disk Access does not seem to be enabled yet."
+      print_info "Please check the settings and try again."
+      return 1
+    fi
+  else
+    print_error "Full Disk Access is required to continue."
+    return 1
+  fi
+}

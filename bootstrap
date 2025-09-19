@@ -22,6 +22,7 @@ export -f insert_to_file_after_line_number uncomment_line prepend_string_to_file
 export -f line_exists add_config get_arch
 export -f retry safe_defaults_write safe_plistbuddy safe_killall
 export -f ensure_directory download_file bootstrap_launch_agent tm_snapshot
+export -f request_full_disk_access
 
 # System validation
 print_info "Validating system requirements..."
@@ -64,23 +65,33 @@ for script in "${UTILS[@]}"; do
   echo "  $i) Run $(basename "$script")"
   ((i++))
 done
-# --- MODIFICATION START: Updated menu text ---
+# Menu options with range and list support
 echo "  *) You can also enter a range (e.g., 1-3) or a list (e.g., 1,3,7)"
 echo "  q) Quit"
 echo
-# --- MODIFICATION END ---
 
 # Handle choice
 while true; do
-  # --- MODIFICATION START: Updated prompt text ---
+  # User input with range and list support
   read -p "Enter choice [0-$((i - 1)), 1-3, 1,3,7, q]: " choice
-  # --- MODIFICATION END ---
   case "$choice" in
     [Qq])
       echo "Goodbye!"
       exit 0
       ;;
     0)
+        # Check if 03-macos.sh is in the full setup and request Full Disk Access if needed
+        for script in "${UTILS[@]}"; do
+          if [[ "$(basename "$script")" == "03-macos.sh" ]]; then
+            print_info "Full setup selected - Full Disk Access required for 03-macos.sh"
+            if ! request_full_disk_access; then
+              print_error "Full Disk Access is required to continue. Script will exit."
+              exit 1
+            fi
+            break
+          fi
+        done
+      
       print_info "Running all setup scripts…"
       for script in "${UTILS[@]}"; do
         print_info "➡️  $(basename "$script")"
@@ -88,7 +99,7 @@ while true; do
       done
       break
       ;;
-    # --- MODIFICATION START: New logic for ranges and lists ---
+    # Handle range and list input (e.g., "1-3" or "1,3,7")
     *)
       # Clear arrays for this iteration and ensure they are properly initialized
       final_script_paths=()
@@ -184,6 +195,18 @@ while true; do
 
       # If we have scripts to run, execute them
       if [ ${#final_script_paths[@]} -gt 0 ]; then
+        # Check if 03-macos.sh is in the selected scripts and request Full Disk Access if needed
+        for script in "${final_script_paths[@]}"; do
+          if [[ "$(basename "$script")" == "03-macos.sh" ]]; then
+            print_info "03-macos.sh selected - Full Disk Access required"
+            if ! request_full_disk_access; then
+              print_error "Full Disk Access is required to continue. Script will exit."
+              exit 1
+            fi
+            break
+          fi
+        done
+        
         print_info "Running selected setup scripts…"
         for script in "${final_script_paths[@]}"; do
           print_info "➡️  $(basename "$script")"
@@ -195,7 +218,6 @@ while true; do
         print_error "No valid scripts selected."
       fi
       ;;
-      # --- MODIFICATION END ---
   esac
 done
 
