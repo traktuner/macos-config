@@ -84,14 +84,3 @@ brew update && brew upgrade
 
 - Homebrew installation: `/tmp/homebrew-install.log`
 - Time Machine snapshots: Automatically named with timestamp
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Commit changes
-4. Create pull request
-
-## 📄 License
-
-[Your license here]
