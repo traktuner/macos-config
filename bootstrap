@@ -21,7 +21,7 @@ export -f symlink_from_to modify_file modify_line
 export -f insert_to_file_after_line_number uncomment_line prepend_string_to_file
 export -f line_exists add_config get_arch
 export -f retry safe_defaults_write safe_plistbuddy safe_killall
-export -f ensure_directory download_file bootstrap_launch_agent tm_snapshot
+export -f ensure_directory download_file bootstrap_launch_daemon tm_snapshot
 export -f request_full_disk_access
 
 # System validation
