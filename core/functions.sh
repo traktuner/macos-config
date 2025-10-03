@@ -182,18 +182,34 @@ download_file() {
 # — Load a LaunchDaemon into the system domain (root)
 bootstrap_launch_daemon() {
   local plist="$1"
-  launchctl bootout system "$plist" &>/dev/null || true
-  if launchctl bootstrap system "$plist"; then
+  local SUDO=""
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    SUDO="sudo"
+  fi
+  if [[ ! -f "$plist" ]]; then
+    print_error "Plist not found: $plist"
+    return 1
+  fi
+  $SUDO chown root:wheel "$plist" 2>/dev/null || true
+  $SUDO chmod 644 "$plist" 2>/dev/null || true
+  if ! $SUDO plutil -lint "$plist" >/dev/null 2>&1; then
+    print_error "Invalid plist: $plist"
+    $SUDO plutil -lint "$plist" || true
+    return 1
+  fi
+  $SUDO launchctl bootout system "$plist" &>/dev/null || true
+  if $SUDO launchctl bootstrap system "$plist"; then
     local label
     label="$(
       /usr/libexec/PlistBuddy -c 'Print :Label' "$plist" 2>/dev/null \
       || basename "$plist" .plist
     )"
-    launchctl enable "system/${label}" &>/dev/null || true
-    launchctl kickstart -k "system/${label}" &>/dev/null || true
+    $SUDO launchctl enable "system/${label}" &>/dev/null || true
+    $SUDO launchctl kickstart -k "system/${label}" &>/dev/null || true
     print_success "Bootstrapped $plist"
   else
     print_error "Failed to bootstrap $plist"
+    return 1
   fi
 }
 
