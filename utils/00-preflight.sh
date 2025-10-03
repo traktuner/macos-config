@@ -41,14 +41,10 @@ fi
 
 # 2) toggleAirport
 TOGGLER="/Library/Scripts/toggleAirport.sh"
-PLIST="/Library/LaunchAgents/com.mine.toggleairport.plist"
+PLIST="/Library/LaunchDaemons/com.mine.toggleairport.plist"
 ensure_directory "/Library/Scripts" true
+ensure_directory "/Library/LaunchDaemons" true
 download_file "https://gist.githubusercontent.com/traktuner/8431e9daf006c0c1d246b8a4766f15b4/raw/toggleAirport.sh" "$TOGGLER" 755 true
-
-ensure_directory "/Library/LaunchAgents" true
-download_file "https://gist.githubusercontent.com/traktuner/8431e9daf006c0c1d246b8a4766f15b4/raw/com.mine.toggleairport.plist" "$PLIST" 600 true
-
-bootstrap_launch_agent "$PLIST"
-
-print_success "Pre-flight tasks completed successfully"
-print_info "System is ready for configuration changes"
+download_file "https://gist.githubusercontent.com/traktuner/8431e9daf006c0c1d246b8a4766f15b4/raw/com.mine.toggleairport.plist" "$PLIST" 644 true
+sudo chown root:wheel "$TOGGLER" "$PLIST"
+bootstrap_launch_daemon "$PLIST"

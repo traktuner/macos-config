@@ -179,11 +179,18 @@ download_file() {
   print_success "Downloaded $url → $dest"
 }
 
-# — Load a LaunchAgent into user session
-bootstrap_launch_agent() {
+# — Load a LaunchDaemon into the system domain (root)
+bootstrap_launch_daemon() {
   local plist="$1"
-  launchctl bootout gui/"$UID" "$plist" &>/dev/null || true
-  if launchctl bootstrap gui/"$UID" "$plist"; then
+  launchctl bootout system "$plist" &>/dev/null || true
+  if launchctl bootstrap system "$plist"; then
+    local label
+    label="$(
+      /usr/libexec/PlistBuddy -c 'Print :Label' "$plist" 2>/dev/null \
+      || basename "$plist" .plist
+    )"
+    launchctl enable "system/${label}" &>/dev/null || true
+    launchctl kickstart -k "system/${label}" &>/dev/null || true
     print_success "Bootstrapped $plist"
   else
     print_error "Failed to bootstrap $plist"
