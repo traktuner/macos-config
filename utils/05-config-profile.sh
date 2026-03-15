@@ -4,32 +4,28 @@ set -euo pipefail
 source "$ROOT_DIR/core/functions.sh"
 print_info "Install Configuration Profile"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1) Define paths
-# ─────────────────────────────────────────────────────────────────────────────
-# Ensure the HOME variable is set, which should always be the case.
 : "${HOME:?HOME must be set}"
 
-# Path to your iCloud Drive folder
 CLOUD_DIR="${HOME}/Library/Mobile Documents/com~apple~CloudDocs"
-
-# Full path to the configuration profile
 PROFILE_PATH="${CLOUD_DIR}/FamilyConfig.mobileconfig"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 2) Open configuration profile for interactive install
-# ─────────────────────────────────────────────────────────────────────────────
+# Check if iCloud Drive is synced (may not be ready on fresh install)
+if [[ ! -d "$CLOUD_DIR" ]]; then
+  print_error "iCloud Drive not found at $CLOUD_DIR"
+  print_info "Please sign in to iCloud and wait for sync, then run this script again."
+  exit 1
+fi
+
 if [[ -f "$PROFILE_PATH" ]]; then
-  print_info "Opening configuration profile for installation…"
-  
-  # The 'open' command will launch System Settings and prompt for installation.
+  print_info "Opening configuration profile for installation..."
   if open "$PROFILE_PATH"; then
-    print_success "Profile opened. Please follow the prompts in System Settings to complete the installation."
+    print_success "Profile opened. Follow the prompts in System Settings > General > Profiles to install."
+    print_info "After installing, you may need to restart for all profile settings to take effect."
   else
     print_error "Failed to open the profile at: $PROFILE_PATH"
   fi
 else
   print_error "Configuration profile not found at: $PROFILE_PATH"
-  # We exit here because the script's main purpose could not be fulfilled.
+  print_info "It may still be syncing from iCloud. Try again later."
   exit 1
 fi

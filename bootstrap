@@ -3,12 +3,12 @@ set -eo pipefail
 
 # Prevent running as root
 if [[ $(id -u) -eq 0 ]]; then
-  echo "❌ Please run bootstrap.sh as your user, not root. Aborting."
+  echo "Please run bootstrap as your user, not root. Aborting."
   exit 1
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$ROOT_DIR" || { echo "❌ Could not cd to $ROOT_DIR"; exit 1; }
+cd "$ROOT_DIR" || { echo "Could not cd to $ROOT_DIR"; exit 1; }
 
 # Load shared functions
 source "$ROOT_DIR/core/functions.sh"
@@ -16,18 +16,18 @@ source "$ROOT_DIR/core/functions.sh"
 # Export helpers into subshells
 export ROOT_DIR
 export -f ask_for_confirmation ask_for_sudo answer_is_yes
-export -f print_info print_success print_error
+export -f print_info print_success print_error log_message
 export -f symlink_from_to modify_file modify_line
 export -f insert_to_file_after_line_number uncomment_line prepend_string_to_file
-export -f line_exists add_config get_arch
+export -f line_exists add_config get_arch command_exists
 export -f retry safe_defaults_write safe_plistbuddy safe_killall
 export -f ensure_directory download_file bootstrap_launch_daemon tm_snapshot
-export -f request_full_disk_access
+export -f request_full_disk_access check_macos_version
 
 # System validation
 print_info "Validating system requirements..."
-if ! check_macos_version "13.0"; then
-  print_error "This script requires macOS 13.0 or higher"
+if ! check_macos_version "14.0"; then
+  print_error "This script requires macOS 14.0 (Sonoma) or higher"
   exit 1
 fi
 
@@ -42,6 +42,13 @@ for cmd in curl git; do
   fi
 done
 
+# Check internet connectivity
+if ! curl -fsS --max-time 5 https://github.com >/dev/null 2>&1; then
+  print_error "No internet connection detected. Please connect to the internet and try again."
+  exit 1
+fi
+print_success "Internet connectivity verified"
+
 ask_for_sudo
 
 print_info "Welcome to your macOS setup bootstrap!"
@@ -49,12 +56,14 @@ print_info "Welcome to your macOS setup bootstrap!"
 # Collect all utils scripts into an array
 UTILS=()
 for f in "$ROOT_DIR/utils"/*.sh; do
+  [[ -f "$f" ]] || continue
   UTILS+=("$f")
 done
 
-# Initialize arrays to prevent unbound variable errors
-declare -a final_script_paths=()
-declare -a scripts_to_run=()
+if [[ ${#UTILS[@]} -eq 0 ]]; then
+  print_error "No scripts found in $ROOT_DIR/utils/"
+  exit 1
+fi
 
 # Display menu
 echo
@@ -65,162 +74,123 @@ for script in "${UTILS[@]}"; do
   echo "  $i) Run $(basename "$script")"
   ((i++))
 done
-# Menu options with range and list support
 echo "  *) You can also enter a range (e.g., 1-3) or a list (e.g., 1,3,7)"
 echo "  q) Quit"
 echo
 
+# Function to check and request Full Disk Access if 03-macos.sh is selected
+check_fda_for_scripts() {
+  local scripts=("$@")
+  for script in "${scripts[@]}"; do
+    if [[ "$(basename "$script")" == "03-macos.sh" ]]; then
+      print_info "03-macos.sh selected - Full Disk Access required"
+      if ! request_full_disk_access; then
+        print_error "Full Disk Access is required to continue."
+        return 1
+      fi
+      return 0
+    fi
+  done
+}
+
+# Function to execute scripts with error tracking
+run_scripts() {
+  local scripts=("$@")
+  local failed=0
+  for script in "${scripts[@]}"; do
+    print_info "Running $(basename "$script")..."
+    if bash "$script"; then
+      print_success "Completed: $(basename "$script")"
+    else
+      print_error "Failed: $(basename "$script")"
+      ((failed++))
+    fi
+  done
+  if ((failed > 0)); then
+    print_error "$failed script(s) had errors. Check the log for details."
+  fi
+}
+
 # Handle choice
 while true; do
-  # User input with range and list support
-  read -p "Enter choice [0-$((i - 1)), 1-3, 1,3,7, q]: " choice
+  read -rp "Enter choice [0-$((i - 1)), range, list, q]: " choice
   case "$choice" in
     [Qq])
       echo "Goodbye!"
       exit 0
       ;;
     0)
-        # Check if 03-macos.sh is in the full setup and request Full Disk Access if needed
-        for script in "${UTILS[@]}"; do
-          if [[ "$(basename "$script")" == "03-macos.sh" ]]; then
-            print_info "Full setup selected - Full Disk Access required for 03-macos.sh"
-            if ! request_full_disk_access; then
-              print_error "Full Disk Access is required to continue. Script will exit."
-              exit 1
-            fi
-            break
-          fi
-        done
-      
-      print_info "Running all setup scripts…"
-      for script in "${UTILS[@]}"; do
-        print_info "➡️  $(basename "$script")"
-        bash "$script" || print_error "Failed: $(basename "$script")"
-      done
+      check_fda_for_scripts "${UTILS[@]}" || exit 1
+      print_info "Running all setup scripts..."
+      run_scripts "${UTILS[@]}"
       break
       ;;
-    # Handle range and list input (e.g., "1-3" or "1,3,7")
     *)
-      # Clear arrays for this iteration and ensure they are properly initialized
-      final_script_paths=()
+      # Parse range and list input (e.g., "1-3" or "1,3,7" or "1,3,5-7")
       scripts_to_run=()
-      
-      # Explicitly declare as empty arrays to prevent unbound variable issues
-      declare -a final_script_paths=()
-      declare -a scripts_to_run=()
-      
-      # Flag to track if the input is valid
       is_valid=true
 
-      # Process the input. Replace commas with spaces to loop through items.
-      # This handles inputs like "1,3,5-7" correctly.
       for item in ${choice//,/ }; do
-        # Check if the item is a range (e.g., "2-4")
-        if [[ "$item" =~ ^[0-9]+-[0-9]+$ ]]; then
-          start=$(echo "$item" | cut -d'-' -f1)
-          end=$(echo "$item" | cut -d'-' -f2)
-
+        if [[ "$item" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+          start="${BASH_REMATCH[1]}"
+          end="${BASH_REMATCH[2]}"
           if ((start > end)); then
-            print_error "Invalid range '$item': Start number is greater than end number."
+            print_error "Invalid range '$item': start > end."
             is_valid=false
             break
           fi
-
-          # Add all numbers in the range to our list
           for num in $(seq "$start" "$end"); do
             scripts_to_run+=("$num")
           done
-        # Check if the item is a single number
         elif [[ "$item" =~ ^[0-9]+$ ]]; then
           scripts_to_run+=("$item")
-        # If it's neither, the input is invalid
         else
-          print_error "Invalid input: '$item' is not a valid number or range."
+          print_error "Invalid input: '$item'"
           is_valid=false
           break
         fi
       done
 
-      # If the input was invalid at any point, restart the loop
-      if ! $is_valid; then
-        continue
-      fi
+      $is_valid || continue
 
-      # Get unique script paths to avoid running a script multiple times
-      # and validate that all numbers are within the allowed range.
-      is_valid=true
-      
-      # Check if we have any scripts to process
-      if [ ${#scripts_to_run[@]} -eq 0 ]; then
+      if [[ ${#scripts_to_run[@]} -eq 0 ]]; then
         print_error "No valid scripts selected."
         continue
       fi
-      
-      # Use a simple string-based approach to track uniqueness (Bash 3.2 compatible)
-      # Ensure scripts_to_run is properly initialized
-      scripts_to_run=("${scripts_to_run[@]:-}")
+
+      # Deduplicate and validate selections
+      final_script_paths=()
+      seen=""
+      is_valid=true
+
       for num in "${scripts_to_run[@]}"; do
-        # Validate if the number is within the script range
         if ((num < 1 || num >= i)); then
-          print_error "Choice '$num' is out of range (must be between 1 and $((i - 1)))."
+          print_error "Choice '$num' is out of range (1-$((i - 1)))."
           is_valid=false
           break
         fi
-
-        # Convert 1-based menu number to 0-based array index
         index=$((num - 1))
         sel_script="${UTILS[index]}"
-
-        # Add script to the final list only if it hasn't been added yet
-        # Use a simple string search instead of associative array
-        # Ensure final_script_paths is properly initialized
-        final_script_paths=("${final_script_paths[@]:-}")
-        is_duplicate=false
-        for existing_script in "${final_script_paths[@]}"; do
-          if [[ "$existing_script" == "$sel_script" ]]; then
-            is_duplicate=true
-            break
-          fi
-        done
-        
-        if [[ "$is_duplicate" == "false" ]]; then
-            final_script_paths+=("$sel_script")
+        if [[ ":$seen:" != *":$sel_script:"* ]]; then
+          final_script_paths+=("$sel_script")
+          seen="$seen:$sel_script"
         fi
       done
 
-      # If validation failed, restart the loop
-      if ! $is_valid; then
+      $is_valid || continue
+
+      if [[ ${#final_script_paths[@]} -eq 0 ]]; then
+        print_error "No valid scripts selected."
         continue
       fi
 
-      # If we have scripts to run, execute them
-      if [ ${#final_script_paths[@]} -gt 0 ]; then
-        # Check if 03-macos.sh is in the selected scripts and request Full Disk Access if needed
-        for script in "${final_script_paths[@]}"; do
-          if [[ "$(basename "$script")" == "03-macos.sh" ]]; then
-            print_info "03-macos.sh selected - Full Disk Access required"
-            if ! request_full_disk_access; then
-              print_error "Full Disk Access is required to continue. Script will exit."
-              exit 1
-            fi
-            break
-          fi
-        done
-        
-        print_info "Running selected setup scripts…"
-        for script in "${final_script_paths[@]}"; do
-          print_info "➡️  $(basename "$script")"
-          bash "$script" || print_error "Failed: $(basename "$script")"
-        done
-        break # Exit the while loop after successful execution
-      else
-        # This case is for empty input or other edge cases
-        print_error "No valid scripts selected."
-      fi
+      check_fda_for_scripts "${final_script_paths[@]}" || exit 1
+      print_info "Running selected setup scripts..."
+      run_scripts "${final_script_paths[@]}"
+      break
       ;;
   esac
 done
 
 print_success "Done! You can now close this terminal."
 print_info "Log file available at: $LOG_FILE"
-exec bash

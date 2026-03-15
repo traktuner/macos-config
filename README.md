@@ -1,86 +1,94 @@
 # macOS Config
 
-Automated configuration for new macOS installations.
+Automated configuration for new macOS installations. Tested on macOS Sonoma (14), Sequoia (15) and Tahoe (26).
 
-## 🚀 Features
+## Features
 
 - **Modular Scripts**: Each aspect of configuration is split into separate scripts
-- **Interactive Selection**: Choose which scripts to run
-- **Robust Error Handling**: Retry mechanisms and comprehensive validation
-- **Security**: Time Machine snapshots before critical changes
+- **Interactive Selection**: Choose which scripts to run (single, range, or list)
+- **Robust Error Handling**: Retry mechanisms, logging, and comprehensive validation
+- **Security**: Time Machine snapshots, secure credential handling, cleanup traps
+- **Internet Check**: Verifies connectivity before starting
+- **Full Disk Access**: Automatic detection and guidance when needed
 
-## 📋 Prerequisites
+## Prerequisites
 
-- macOS (tested on macOS 14+)
-- Internet connection for Homebrew installation
+- macOS 14.0 (Sonoma) or higher
+- Internet connection
+- Apple ID signed in (for Mac App Store apps)
 - SMB access for SSH keys (optional)
 
-## 🛠️ Installation
+## Installation
 
 ```bash
-# Clone repository
 git clone <your-repo-url>
 cd macos-config
-
-# Run bootstrap script
+chmod +x bootstrap
 ./bootstrap
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 macos-config/
-├── bootstrap              # Main script with interactive menu
+├── bootstrap                 # Main script with interactive menu
 ├── core/
-│   ├── Brewfile          # Homebrew packages and apps
-│   └── functions.sh      # Shared functions
+│   ├── Brewfile              # Homebrew packages, casks, and MAS apps
+│   └── functions.sh          # Shared utility functions
 ├── utils/
-│   ├── 00-preflight.sh   # Time Machine snapshot, CrashPlan
-│   ├── 01-install-rosetta2.sh
-│   ├── 02-homebrew.sh    # Homebrew installation & packages
-│   ├── 03-macos.sh       # macOS system configuration
-│   ├── 04-ssh-keys.sh    # SSH keys from SMB share
-│   ├── 05-config-profile.sh # Install configuration profile
-│   └── 06-macos-update.sh   # System updates
-└── renovate.json         # Automatic updates
+│   ├── 00-preflight.sh       # Time Machine snapshot, CrashPlan, toggleAirport
+│   ├── 01-install-rosetta2.sh  # Rosetta 2 for Apple Silicon
+│   ├── 02-homebrew.sh        # Homebrew installation & packages
+│   ├── 03-macos.sh           # macOS system preferences (defaults write)
+│   ├── 04-ssh-keys.sh        # SSH keys from SMB share
+│   ├── 05-config-profile.sh  # Install configuration profile from iCloud
+│   ├── 06-macos-update.sh    # macOS software updates
+│   └── deploy.properties     # CrashPlan deployment config
+└── renovate.json             # Automated dependency updates
 ```
 
-## 🎯 Usage
+## Usage
 
-1. **Full Installation**: Choose option `0` for all scripts
-2. **Selective Installation**: Choose individual scripts or ranges
-3. **Range Selection**: Use ranges like `1-3` or lists like `1,3,5`
+1. **Full Installation**: Choose option `0` to run all scripts in order
+2. **Selective Installation**: Choose individual scripts by number
+3. **Range/List Selection**: Use ranges like `1-3` or lists like `1,3,5`
 
-## 🔧 Configuration
+## Configuration
 
-### Customize Homebrew packages
-Edit `core/Brewfile` to add/remove apps.
+### Homebrew packages
+Edit `core/Brewfile` to add/remove apps. Custom casks are in the `traktuner/traktuner` tap.
 
-### Customize macOS settings
-Modify `utils/03-macos.sh` for personal preferences.
+### macOS settings
+Modify `utils/03-macos.sh` for personal preferences. Settings are organized by category (UI/UX, Finder, Dock, Safari, etc.).
 
 ### SSH Keys
-Configure the SMB path in `utils/04-ssh-keys.sh`.
+Configure the SMB server/share in `utils/04-ssh-keys.sh`.
 
-## 🛡️ Security
+## Security
 
-- Time Machine snapshots before critical changes
-- Secure password input for SMB access
-- Automatic cleanup of sensitive data
+- Time Machine snapshot before making changes
+- SMB credentials cleaned up via trap on exit
+- SSH key permissions automatically set (600/644)
+- No passwords exposed in process list
+- Full Disk Access verified before modifying protected settings
 
-## 🔄 Maintenance
+## Logs
 
-The project is automatically updated by Renovate. For manual updates:
+All output is logged to `/tmp/macos-config.log` with timestamps.
+
+## Maintenance
+
+Dependency updates are automated via Renovate (weekly, Monday mornings).
 
 ```bash
-# Update Homebrew packages
-brew update && brew upgrade
-
-# Add new macOS settings
-# Edit utils/03-macos.sh
+# Manual Homebrew maintenance
+brew update && brew upgrade && brew cleanup
 ```
 
-## 📝 Logs
+## Notes on macOS Tahoe (26)
 
-- Homebrew installation: `/tmp/homebrew-install.log`
-- Time Machine snapshots: Automatically named with timestamp
+- `com.apple.screensaver askForPassword` is deprecated - use Lock Screen settings or MDM profiles
+- `com.apple.SoftwareUpdate ScheduleFrequency` has no effect since Catalina
+- Safari defaults require Full Disk Access for Terminal
+- Window tiling margins can be controlled via `com.apple.WindowManager`
+- macOS Tahoe is the last version supporting Intel Macs
