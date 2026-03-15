@@ -29,6 +29,9 @@ cask 'beeper'
 cask 'citrix-workspace'
 cask 'microsoft-teams'
 
+# AI
+cask 'claude'
+
 # Productivity
 cask 'warp'
 cask 'keepingyouawake'
@@ -37,6 +40,7 @@ cask 'visual-studio-code'
 cask 'network-share-mounter'
 cask 'imazing-profile-editor'
 cask 'libreoffice'
+cask 'betterdisplay'
 
 # Media & Creativity
 cask 'affinity'
