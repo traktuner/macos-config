@@ -261,6 +261,27 @@ safe_defaults_write com.apple.mail AddressesIncludeNameOnPasteboard -bool false
 safe_defaults_write com.apple.mail DisableInlineAttachmentViewing -bool true
 
 ###############################################################################
+# Default Apps (Browser & Mail)
+###############################################################################
+print_info "Setting default browser and mail app..."
+
+# Default browser: Firefox
+if command_exists defaultbrowser; then
+  defaultbrowser firefox && print_success "Default browser set to Firefox" \
+    || print_error "Failed to set default browser (confirm the dialog if prompted)"
+else
+  print_info "defaultbrowser not installed - skipping browser default"
+fi
+
+# Default mail app: Proton Mail
+if command_exists duti; then
+  duti -s ch.protonmail.desktop mailto viewer && print_success "Default mail app set to Proton Mail" \
+    || print_error "Failed to set default mail app"
+else
+  print_info "duti not installed - skipping mail default"
+fi
+
+###############################################################################
 # Wallpaper
 ###############################################################################
 print_info "Setting default wallpaper..."
