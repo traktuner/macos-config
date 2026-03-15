@@ -14,7 +14,6 @@ cask 'ungoogled-chromium'
 cask 'cryptomator'
 cask 'little-snitch'
 cask 'microsoft-defender'
-# cask 'cleanmymac'
 
 # Proton Suite
 # cask 'proton-drive'
@@ -25,35 +24,25 @@ cask 'standard-notes'
 
 # Communication & Collaboration
 cask 'beeper'
-cask 'cisco-jabber'
 cask 'citrix-workspace'
 cask 'microsoft-teams'
-cask 'webex'
 
 # Productivity
 cask 'warp'
 cask 'keepingyouawake'
-cask 'shottr'
 cask 'opencloud'
-cask 'cursor'
 cask 'visual-studio-code'
 cask 'network-share-mounter'
 cask 'imazing-profile-editor'
 cask 'libreoffice'
-cask '2fhey'
 
 # Media & Creativity
-cask 'affinity-designer'
-cask 'affinity-photo'
-cask 'affinity-publisher'
-# cask 'darktable'
-# cask 'topaz-video-ai'
+cask 'affinity'
 cask 'vlc'
 cask 'jellyfin-media-player'
 
 # Backup & Maintenance
 cask 'appcleaner'
-# cask 'bartender'
 cask 'betterzip'
 cask 'daisydisk'
 cask 'crashplan'
@@ -66,17 +55,14 @@ cask 'steam'
 # App Store
 # Core Apps
 mas 'Logic Pro', id: 634148309
-mas 'Pixelmator Pro', id: 1289583905
-mas 'Vivid', id: 6443470555
 mas 'CEWE Fotoservice', id: 1446275768
-mas 'HP Smart', id: 1474276998
+mas 'HP', id: 1474276998
 mas 'Speedtest', id: 1153157709
 mas 'Apple Configurator', id: 1037126344
 
 # Extensions
-mas '1Blocker', id: 1365531024
-mas 'Noir', id: 1592917505
-mas 'Proton Pass for Safari', id: 6502835663
-mas 'StopTheMadness Pro', id: 6471380298
-mas 'Wayback Machine', id: 1472432422
-mas 'Menu Bar Controller for Sonos', id: 6749351423
+#mas '1Blocker', id: 1365531024
+#mas 'Noir', id: 1592917505
+#mas 'Proton Pass for Safari', id: 6502835663
+#mas 'StopTheMadness Pro', id: 6471380298
+#mas 'Wayback Machine', id: 1472432422
