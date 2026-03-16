@@ -75,10 +75,10 @@ print_info "Installing from Brewfile..."
 if [[ "$INSTALL_MAS_APPS" == false ]]; then
   TMP_BREWFILE="$(mktemp)"
   grep -v '^mas ' "$ROOT_DIR/core/Brewfile" > "$TMP_BREWFILE"
-  brew bundle --file="$TMP_BREWFILE" --no-lock || print_error "Some Brewfile items failed"
+  brew bundle --file="$TMP_BREWFILE" || print_error "Some Brewfile items failed"
   rm -f "$TMP_BREWFILE"
 else
-  brew bundle --file="$ROOT_DIR/core/Brewfile" --no-lock || print_error "Some Brewfile items failed"
+  brew bundle --file="$ROOT_DIR/core/Brewfile" || print_error "Some Brewfile items failed"
 fi
 
 # 7) Upgrade and cleanup
