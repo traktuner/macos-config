@@ -70,22 +70,41 @@ else
 fi
 
 # 6) Prefetch all downloads (with retries) so install phase is fast and offline-safe
-print_info "Prefetching formulas..."
 FETCH_FAILED=()
-for f in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --formula 2>/dev/null); do
-  if ! retry 5 10 brew fetch "$f" >/dev/null 2>&1; then
-    print_error "Failed to fetch formula: $f"
-    FETCH_FAILED+=("brew $f")
-  fi
-done
 
-print_info "Prefetching casks..."
-for c in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --cask 2>/dev/null); do
-  if ! retry 5 10 brew fetch --cask "$c" >/dev/null 2>&1; then
-    print_error "Failed to fetch cask: $c"
-    FETCH_FAILED+=("cask $c")
-  fi
-done
+FORMULAS=($(brew bundle list --file="$ROOT_DIR/core/Brewfile" --formula 2>/dev/null))
+FORMULA_COUNT=${#FORMULAS[@]}
+if ((FORMULA_COUNT > 0)); then
+  print_info "Prefetching $FORMULA_COUNT formulas..."
+  i=0
+  for f in "${FORMULAS[@]}"; do
+    ((i++))
+    print_info "  [$i/$FORMULA_COUNT] Fetching $f..."
+    if ! retry 5 10 brew fetch "$f" >/dev/null 2>&1; then
+      print_error "  Failed to fetch formula: $f"
+      FETCH_FAILED+=("brew $f")
+    else
+      print_success "  $f fetched"
+    fi
+  done
+fi
+
+CASKS=($(brew bundle list --file="$ROOT_DIR/core/Brewfile" --cask 2>/dev/null))
+CASK_COUNT=${#CASKS[@]}
+if ((CASK_COUNT > 0)); then
+  print_info "Prefetching $CASK_COUNT casks..."
+  i=0
+  for c in "${CASKS[@]}"; do
+    ((i++))
+    print_info "  [$i/$CASK_COUNT] Fetching $c..."
+    if ! retry 5 10 brew fetch --cask "$c" >/dev/null 2>&1; then
+      print_error "  Failed to fetch cask: $c"
+      FETCH_FAILED+=("cask $c")
+    else
+      print_success "  $c fetched"
+    fi
+  done
+fi
 
 if [[ ${#FETCH_FAILED[@]} -gt 0 ]]; then
   print_error "${#FETCH_FAILED[@]} item(s) failed to download:"
@@ -93,6 +112,8 @@ if [[ ${#FETCH_FAILED[@]} -gt 0 ]]; then
     print_error "  - $item"
   done
   print_info "Continuing with installation of successfully fetched items..."
+else
+  print_success "All items prefetched successfully"
 fi
 
 # 7) Install from Brewfile

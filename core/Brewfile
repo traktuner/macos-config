@@ -6,6 +6,7 @@ brew 'mas'
 brew 'git'
 brew 'tailscale'
 brew 'defaultbrowser'
+brew 'dockutil'
 
 # Browsers
 cask 'firefox'

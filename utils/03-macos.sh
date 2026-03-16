@@ -261,25 +261,94 @@ safe_defaults_write com.apple.mail AddressesIncludeNameOnPasteboard -bool false
 safe_defaults_write com.apple.mail DisableInlineAttachmentViewing -bool true
 
 ###############################################################################
-# Default Apps (Browser & Mail)
+# Performance — reduce Liquid Glass overhead & unnecessary animations (Tahoe)
 ###############################################################################
-print_info "Setting default browser and mail app..."
+print_info "Applying performance optimizations..."
 
-# Default browser: Firefox
-if command_exists defaultbrowser; then
-  defaultbrowser firefox && print_success "Default browser set to Firefox" \
-    || print_error "Failed to set default browser (confirm the dialog if prompted)"
-else
-  print_info "defaultbrowser not installed - skipping browser default"
-fi
+# Reduce Motion — less animation compositing
+safe_defaults_write com.apple.universalaccess reduceMotion -bool true
 
-# Default mail app: Proton Mail
-if command_exists duti; then
-  duti -s ch.protonmail.desktop mailto viewer && print_success "Default mail app set to Proton Mail" \
-    || print_error "Failed to set default mail app"
-else
-  print_info "duti not installed - skipping mail default"
-fi
+# Disable window open/close animations
+safe_defaults_write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false
+
+# Instant window resize
+safe_defaults_write NSGlobalDomain NSWindowResizeTime -float 0.001
+
+# Disable Dock launch bounce animation
+safe_defaults_write com.apple.dock launchanim -bool false
+
+# Instant Launchpad/App Launcher animations
+safe_defaults_write com.apple.dock springboard-show-duration -float 0
+safe_defaults_write com.apple.dock springboard-hide-duration -float 0
+safe_defaults_write com.apple.dock springboard-page-duration -float 0
+
+# Faster Mission Control animation
+safe_defaults_write com.apple.dock expose-animation-duration -float 0.1
+
+# Disable Finder animations
+safe_defaults_write com.apple.finder DisableAllAnimations -bool true
+
+# Instant Quick Look panel
+safe_defaults_write NSGlobalDomain QLPanelAnimationDuration -float 0
+
+# Instant toolbar fullscreen animation
+safe_defaults_write NSGlobalDomain NSToolbarFullScreenAnimationDuration -float 0
+
+# Disable Mail send/reply animations
+safe_defaults_write com.apple.Mail DisableSendAnimations -bool true
+safe_defaults_write com.apple.Mail DisableReplyAnimations -bool true
+
+# Prevent apps from reopening on login
+safe_defaults_write com.apple.loginwindow TALLogoutSavesState -bool false
+
+###############################################################################
+# Performance — disable unnecessary background services
+###############################################################################
+print_info "Disabling unnecessary background services..."
+
+# Analytics & diagnostics
+sudo launchctl disable system/com.apple.analyticsd 2>/dev/null || true
+sudo launchctl disable system/com.apple.ecosystemanalyticsd 2>/dev/null || true
+sudo launchctl disable system/com.apple.wifianalyticsd 2>/dev/null || true
+
+# Siri & suggestions
+launchctl disable "gui/$(id -u)/com.apple.assistantd" 2>/dev/null || true
+launchctl disable "gui/$(id -u)/com.apple.suggestd" 2>/dev/null || true
+
+# Game Center
+launchctl disable "gui/$(id -u)/com.apple.gamed" 2>/dev/null || true
+
+# Apple ad tracking
+launchctl disable "gui/$(id -u)/com.apple.ap.adprivacyd" 2>/dev/null || true
+launchctl disable "gui/$(id -u)/com.apple.ap.promotedcontentd" 2>/dev/null || true
+
+# Tips & News (if unused)
+launchctl disable "gui/$(id -u)/com.apple.tipsd" 2>/dev/null || true
+
+# Apple Intelligence background flow (if not using Apple Intelligence)
+launchctl disable "gui/$(id -u)/com.apple.intelligenceflowd" 2>/dev/null || true
+
+# Routine/location tracking
+launchctl disable "gui/$(id -u)/com.apple.routined" 2>/dev/null || true
+launchctl disable "gui/$(id -u)/com.apple.parsecd" 2>/dev/null || true
+
+print_success "Background services optimized"
+
+###############################################################################
+# Spotlight — disable web suggestions (reduces network calls)
+###############################################################################
+print_info "Configuring Spotlight..."
+safe_defaults_write com.apple.spotlight orderedItems -array \
+  '{"enabled" = 1; "name" = "APPLICATIONS";}' \
+  '{"enabled" = 1; "name" = "MENU_EXPRESSION";}' \
+  '{"enabled" = 1; "name" = "CONTACT";}' \
+  '{"enabled" = 1; "name" = "MENU_CONVERSION";}' \
+  '{"enabled" = 1; "name" = "MENU_DEFINITION";}' \
+  '{"enabled" = 1; "name" = "SYSTEM_PREFS";}' \
+  '{"enabled" = 1; "name" = "DOCUMENTS";}' \
+  '{"enabled" = 1; "name" = "DIRECTORIES";}' \
+  '{"enabled" = 0; "name" = "MENU_SPOTLIGHT_SUGGESTIONS";}' \
+  '{"enabled" = 0; "name" = "MENU_WEBSEARCH";}'
 
 ###############################################################################
 # Wallpaper
