@@ -8,14 +8,14 @@ print_info "SSH Keyfiles - mount SMB share and copy keys"
 SMB_SERVER="172.16.10.200"
 SMB_SHARE="tom"
 SMB_SUBDIR="tresor/ssh"
-MOUNT_POINT="/Volumes/tom"
+MOUNT_POINT=""  # set dynamically after mount
 TARGET_DIR="$HOME/.ssh"
 TIMEOUT=30
 
 # Cleanup function to ensure sensitive data and mounts are cleaned up
 cleanup() {
-  [[ -f "${CRED_FILE:-}" ]] && rm -f "$CRED_FILE"
-  if mount | grep -q "on ${MOUNT_POINT} "; then
+  unset ENCODED_PASS ENCODED_USER SMB_PASS 2>/dev/null || true
+  if [[ -n "${MOUNT_POINT:-}" ]] && mount | grep -q "on ${MOUNT_POINT} "; then
     diskutil unmount "${MOUNT_POINT}" &>/dev/null || \
       umount "${MOUNT_POINT}" &>/dev/null || true
   fi
@@ -37,37 +37,48 @@ ensure_directory "${TARGET_DIR}" false
 chmod 700 "${TARGET_DIR}"
 print_success "SSH directory prepared (700)"
 
-# 3) Clean up stale mount point
-if mount | grep -q "on ${MOUNT_POINT} "; then
-  print_info "Unmounting stale share at ${MOUNT_POINT}..."
-  diskutil unmount "${MOUNT_POINT}" &>/dev/null || umount "${MOUNT_POINT}" &>/dev/null || true
-fi
-# Remove leftover empty directory (mount_smbfs fails with "File exists" if it exists)
-if [[ -d "${MOUNT_POINT}" ]] && ! mount | grep -q "on ${MOUNT_POINT} "; then
-  rmdir "${MOUNT_POINT}" 2>/dev/null || sudo rmdir "${MOUNT_POINT}" 2>/dev/null || true
+# 3) Check if this share is already mounted somewhere
+EXISTING_MOUNT=$(mount | grep "${SMB_SERVER}/${SMB_SHARE}" | awk '{print $3}' | head -1)
+if [[ -n "$EXISTING_MOUNT" ]]; then
+  print_info "Share already mounted at ${EXISTING_MOUNT}, unmounting..."
+  diskutil unmount "$EXISTING_MOUNT" &>/dev/null || umount "$EXISTING_MOUNT" &>/dev/null || true
+  sleep 1
 fi
 
-# 4) Mount SMB share (as current user, not root)
+# 4) Mount SMB share via osascript (same code path as Finder — auto-creates mount point)
 print_info "Mounting SMB share..."
-mkdir -p "${MOUNT_POINT}" 2>/dev/null || sudo mkdir -p "${MOUNT_POINT}"
 
 # URL-encode credentials safely via stdin (never on command line / visible in ps)
 ENCODED_PASS=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_PASS")
 ENCODED_USER=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_USER")
 
-# Mount — redirect stderr to /dev/null to prevent credentials appearing in error output
-MOUNT_ERR=$(mount_smbfs "//${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}" "${MOUNT_POINT}" 2>&1) || true
-unset ENCODED_PASS ENCODED_USER SMB_PASS
-
-# Check if mount succeeded
-if mount | grep -q "on ${MOUNT_POINT} "; then
-  print_success "SMB share mounted at ${MOUNT_POINT}"
-else
-  # Sanitize error message: remove credentials from output
-  SAFE_ERR=$(echo "$MOUNT_ERR" | sed "s|//[^@]*@|//***:***@|g")
-  print_error "mount_smbfs failed: $SAFE_ERR"
+# Mount via AppleScript — uses NetFS framework like Finder, auto-creates /Volumes/share
+if ! osascript -e "mount volume \"smb://${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}\"" &>/dev/null; then
+  print_error "Failed to mount SMB share (check credentials and network)"
+  unset ENCODED_PASS ENCODED_USER SMB_PASS
   exit 1
 fi
+unset ENCODED_PASS ENCODED_USER SMB_PASS
+
+# Find the actual mount point (Finder may create /Volumes/tom or /Volumes/tom-1 etc.)
+sleep 2
+MOUNT_POINT=$(mount | grep "${SMB_SERVER}/${SMB_SHARE}" | awk '{print $3}' | head -1)
+
+if [[ -z "$MOUNT_POINT" || ! -d "$MOUNT_POINT" ]]; then
+  # Fallback: check common mount point names
+  for candidate in "/Volumes/${SMB_SHARE}" "/Volumes/${SMB_SHARE}-1" "/Volumes/${SMB_SHARE}-2"; do
+    if [[ -d "$candidate" ]]; then
+      MOUNT_POINT="$candidate"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$MOUNT_POINT" || ! -d "$MOUNT_POINT" ]]; then
+  print_error "SMB share mounted but mount point not found"
+  exit 1
+fi
+print_success "SMB share mounted at ${MOUNT_POINT}"
 
 # Wait for mount to become accessible
 print_info "Waiting for share to become accessible..."
