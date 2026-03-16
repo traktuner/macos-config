@@ -14,9 +14,10 @@ TIMEOUT=30
 
 # Cleanup function to ensure sensitive data and mounts are cleaned up
 cleanup() {
-  unset SMB_PASS 2>/dev/null || true
+  [[ -f "${CRED_FILE:-}" ]] && rm -f "$CRED_FILE"
   if mount | grep -q "on ${MOUNT_POINT} "; then
-    sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null || true
+    diskutil unmount "${MOUNT_POINT}" &>/dev/null || \
+      umount "${MOUNT_POINT}" &>/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -39,42 +40,41 @@ print_success "SSH directory prepared (700)"
 # 3) Unmount stale share if present
 if mount | grep -q "on ${MOUNT_POINT} "; then
   print_info "Unmounting stale share at ${MOUNT_POINT}..."
-  sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null || true
+  diskutil unmount "${MOUNT_POINT}" &>/dev/null || true
 fi
 
-# 4) Mount SMB share using mount_smbfs (no password in process list)
+# 4) Mount SMB share (as current user, not root)
 print_info "Mounting SMB share..."
-sudo mkdir -p "${MOUNT_POINT}"
+mkdir -p "${MOUNT_POINT}" 2>/dev/null || sudo mkdir -p "${MOUNT_POINT}"
 
-# Use mount_smbfs with credentials passed via URL (more secure than open command)
-# The password is URL-encoded to handle special characters
-ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${SMB_PASS}', safe=''))")
+# URL-encode password safely via stdin (never on command line / visible in ps)
+ENCODED_PASS=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_PASS")
+ENCODED_USER=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_USER")
 
-# Mount the share root, then access the subfolder
-if ! mount_smbfs "//$(printf '%s' "${SMB_USER}"):$(printf '%s' "${ENCODED_PASS}")@${SMB_SERVER}/${SMB_SHARE}" "${MOUNT_POINT}" 2>/dev/null; then
-  # Fallback: try opening Finder for GUI-based mounting
-  print_info "mount_smbfs failed, trying Finder-based mount..."
-  open "smb://${SMB_USER}@${SMB_SERVER}/${SMB_SHARE}" || true
-
-  print_info "Waiting up to ${TIMEOUT}s for ${MOUNT_POINT}..."
-  elapsed=0
-  while [[ ! -d "${MOUNT_POINT}" && ${elapsed} -lt ${TIMEOUT} ]]; do
-    sleep 1
-    (( elapsed++ ))
-  done
-fi
-unset ENCODED_PASS
-
-if [[ ! -d "${MOUNT_POINT}" ]]; then
-  print_error "Mount did not appear within ${TIMEOUT}s. Aborting."
+# Mount as current user (no sudo!) to avoid permission issues
+if mount_smbfs "//${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}" "${MOUNT_POINT}" 2>&1; then
+  print_success "SMB share mounted at ${MOUNT_POINT}"
+else
+  print_error "mount_smbfs failed"
+  unset ENCODED_PASS ENCODED_USER SMB_PASS
   exit 1
 fi
-print_success "SMB share mounted at ${MOUNT_POINT}"
+unset ENCODED_PASS ENCODED_USER SMB_PASS
+
+# Wait for mount to become accessible
+print_info "Waiting for share to become accessible..."
+elapsed=0
+while [[ ! -d "${MOUNT_POINT}/${SMB_SUBDIR}" && ${elapsed} -lt ${TIMEOUT} ]]; do
+  sleep 1
+  (( elapsed++ ))
+done
 
 # Source directory within the mounted share
 SOURCE_DIR="${MOUNT_POINT}/${SMB_SUBDIR}"
 if [[ ! -d "$SOURCE_DIR" ]]; then
   print_error "SSH key directory not found at ${SOURCE_DIR}"
+  print_info "Contents of ${MOUNT_POINT}:"
+  ls -la "${MOUNT_POINT}/" 2>/dev/null || true
   exit 1
 fi
 
@@ -96,11 +96,14 @@ if compgen -G "${SOURCE_DIR}/*" > /dev/null; then
 
     # Set correct permissions on SSH files
     print_info "Setting permissions on SSH files..."
-    find "${TARGET_DIR}" -type f -name "id_*" ! -name "*.pub" -exec chmod 600 {} \;
-    find "${TARGET_DIR}" -type f -name "*.pub" -exec chmod 644 {} \;
-    find "${TARGET_DIR}" -type f -name "known_hosts*" -exec chmod 644 {} \;
-    find "${TARGET_DIR}" -type f -name "config" -exec chmod 600 {} \;
-    find "${TARGET_DIR}" -type f -name "authorized_keys" -exec chmod 600 {} \;
+    # Private keys: 600 (all files without .pub extension, excluding known_hosts/config)
+    find "${TARGET_DIR}" -maxdepth 1 -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" ! -name "authorized_keys" -exec chmod 600 {} \;
+    # Public keys: 644
+    find "${TARGET_DIR}" -maxdepth 1 -type f -name "*.pub" -exec chmod 644 {} \;
+    # Config and special files
+    [[ -f "${TARGET_DIR}/config" ]] && chmod 600 "${TARGET_DIR}/config"
+    [[ -f "${TARGET_DIR}/authorized_keys" ]] && chmod 600 "${TARGET_DIR}/authorized_keys"
+    find "${TARGET_DIR}" -maxdepth 1 -type f -name "known_hosts*" -exec chmod 644 {} \;
 
     # Ensure correct ownership
     chown -R "$(whoami):$(id -gn)" "${TARGET_DIR}"
@@ -126,12 +129,12 @@ fi
 
 # 6) Unmount the share
 print_info "Unmounting ${MOUNT_POINT}..."
-if sudo diskutil unmount "${MOUNT_POINT}" 2>/dev/null; then
+if diskutil unmount "${MOUNT_POINT}" 2>/dev/null; then
   print_success "Unmounted share"
-elif sudo umount -f "${MOUNT_POINT}" 2>/dev/null; then
-  print_success "Force unmounted share"
+elif umount "${MOUNT_POINT}" 2>/dev/null; then
+  print_success "Unmounted share (umount)"
 else
-  print_error "Failed to unmount share"
+  print_error "Failed to unmount share (will be cleaned up on exit)"
 fi
 
 print_success "SSH keys setup completed"

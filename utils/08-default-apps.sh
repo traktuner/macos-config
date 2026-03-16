@@ -78,18 +78,28 @@ fi
 # We use 'defaultbrowser' which triggers the dialog, then inform the user.
 ###############################################################################
 if [[ -d "/Applications/Firefox.app" ]]; then
+  # Resolve defaultbrowser binary (may not be in PATH if Homebrew was just installed)
+  DEFAULTBROWSER=""
   if command_exists defaultbrowser; then
+    DEFAULTBROWSER="defaultbrowser"
+  elif [[ -x "/opt/homebrew/bin/defaultbrowser" ]]; then
+    DEFAULTBROWSER="/opt/homebrew/bin/defaultbrowser"
+  elif [[ -x "/usr/local/bin/defaultbrowser" ]]; then
+    DEFAULTBROWSER="/usr/local/bin/defaultbrowser"
+  fi
+
+  if [[ -n "$DEFAULTBROWSER" ]]; then
+    # defaultbrowser sets BOTH http and https in one go — no need for separate https call
     print_info "Setting Firefox as default browser..."
     print_info "macOS will show a confirmation dialog — please click 'Use Firefox'."
     sleep 2
-    defaultbrowser firefox || print_error "defaultbrowser returned an error (dialog may not have been confirmed)"
+    "$DEFAULTBROWSER" firefox || print_error "defaultbrowser returned an error (dialog may not have been confirmed)"
     print_success "Firefox default browser request sent (confirm the dialog if prompted)"
   else
-    # Fallback: use Swift API (also triggers dialog)
+    # Fallback: use Swift API (also triggers dialog, one for http is enough)
     print_info "macOS will show a confirmation dialog — please click 'Use Firefox'."
     sleep 2
     set_default_app_for_scheme "http" "/Applications/Firefox.app" "Firefox" || true
-    set_default_app_for_scheme "https" "/Applications/Firefox.app" "Firefox" || true
   fi
 else
   print_error "Firefox not installed — skipping default browser setup"
