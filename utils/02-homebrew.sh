@@ -69,89 +69,53 @@ else
   INSTALL_MAS_APPS=false
 fi
 
-# 6) Prefetch all downloads (with retries) so install phase is fast and offline-safe
-FETCH_FAILED=()
-
-FORMULAS=($(brew bundle list --file="$ROOT_DIR/core/Brewfile" --formula 2>/dev/null))
-FORMULA_COUNT=${#FORMULAS[@]}
-if ((FORMULA_COUNT > 0)); then
-  print_info "Prefetching $FORMULA_COUNT formulas..."
-  i=0
-  for f in "${FORMULAS[@]}"; do
-    ((i++))
-    print_info "  [$i/$FORMULA_COUNT] Fetching $f..."
-    if ! retry 5 10 brew fetch "$f" >/dev/null 2>&1; then
-      print_error "  Failed to fetch formula: $f"
-      FETCH_FAILED+=("brew $f")
-    else
-      print_success "  $f fetched"
-    fi
-  done
-fi
-
-CASKS=($(brew bundle list --file="$ROOT_DIR/core/Brewfile" --cask 2>/dev/null))
-CASK_COUNT=${#CASKS[@]}
-if ((CASK_COUNT > 0)); then
-  print_info "Prefetching $CASK_COUNT casks..."
-  i=0
-  for c in "${CASKS[@]}"; do
-    ((i++))
-    print_info "  [$i/$CASK_COUNT] Fetching $c..."
-    if ! retry 5 10 brew fetch --cask "$c" >/dev/null 2>&1; then
-      print_error "  Failed to fetch cask: $c"
-      FETCH_FAILED+=("cask $c")
-    else
-      print_success "  $c fetched"
-    fi
-  done
-fi
-
-if [[ ${#FETCH_FAILED[@]} -gt 0 ]]; then
-  print_error "${#FETCH_FAILED[@]} item(s) failed to download:"
-  for item in "${FETCH_FAILED[@]}"; do
-    print_error "  - $item"
-  done
-  print_info "Continuing with installation of successfully fetched items..."
-else
-  print_success "All items prefetched successfully"
-fi
-
-# 7) Install from Brewfile
+# 6) Install from Brewfile (with up to 3 retries for transient download failures)
 print_info "Installing from Brewfile..."
 
+BREWFILE_TO_USE="$ROOT_DIR/core/Brewfile"
+TMP_BREWFILE=""
 if [[ "$INSTALL_MAS_APPS" == false ]]; then
   TMP_BREWFILE="$(mktemp)"
   grep -v '^mas ' "$ROOT_DIR/core/Brewfile" > "$TMP_BREWFILE"
-  brew bundle --file="$TMP_BREWFILE" || print_error "Some Brewfile items failed"
-  rm -f "$TMP_BREWFILE"
-else
-  brew bundle --file="$ROOT_DIR/core/Brewfile" || print_error "Some Brewfile items failed"
+  BREWFILE_TO_USE="$TMP_BREWFILE"
 fi
 
-# 8) Upgrade and cleanup
+BUNDLE_OK=false
+for attempt in 1 2 3; do
+  if brew bundle --file="$BREWFILE_TO_USE"; then
+    BUNDLE_OK=true
+    break
+  fi
+  if [[ $attempt -lt 3 ]]; then
+    print_error "brew bundle attempt $attempt/3 had failures — retrying in 10s..."
+    sleep 10
+  fi
+done
+[[ -n "$TMP_BREWFILE" ]] && rm -f "$TMP_BREWFILE"
+
+if $BUNDLE_OK; then
+  print_success "All Brewfile items installed"
+else
+  print_error "Some Brewfile items failed after 3 attempts (check output above)"
+fi
+
+# 7) Upgrade and cleanup
 print_info "Running brew maintenance..."
 brew upgrade || true
 brew cleanup --prune=30
 
-# 9) Health check
+# 8) Health check
 if brew doctor 2>/dev/null; then
   print_success "brew doctor: OK"
 else
   print_error "brew doctor reported issues (check output above)"
 fi
 
-# 10) Post-installation verification
-print_info "Verifying key installations..."
-local_failed=0
-for app in "Visual Studio Code" "Firefox" "Warp"; do
-  if [[ -d "/Applications/$app.app" ]]; then
-    print_success "$app installed"
-  else
-    print_error "$app not found in /Applications"
-    ((local_failed++)) || true
-  fi
-done
-
-if ((local_failed == 0)); then
-  print_success "All key apps verified"
+# 9) Post-installation verification via brew bundle check
+print_info "Verifying installations..."
+if brew bundle check --file="$ROOT_DIR/core/Brewfile" 2>/dev/null; then
+  print_success "All Brewfile items verified"
+else
+  print_error "Some Brewfile items are missing:"
+  brew bundle check --file="$ROOT_DIR/core/Brewfile" --verbose 2>/dev/null || true
 fi

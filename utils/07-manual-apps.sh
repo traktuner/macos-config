@@ -31,6 +31,7 @@ install_pkg() {
 }
 
 # -- Helper: download and install .dmg
+#    Uses hdiutil attach -plist for structured XML output instead of fragile text parsing
 install_dmg() {
   local name="$1" url="$2" app_name="${3:-$1}"
   local dmg_file="$DOWNLOAD_DIR/${name}.dmg"
@@ -41,51 +42,55 @@ install_dmg() {
   fi
 
   print_info "Downloading $name..."
-  if curl -fsSL --retry 3 --retry-delay 2 -o "$dmg_file" "$url"; then
-    print_info "Mounting $name..."
-    local mount_point
-    mount_point=$(hdiutil attach "$dmg_file" -nobrowse -quiet | tail -1 | awk '{print $NF}')
+  if ! curl -fsSL --retry 3 --retry-delay 2 -o "$dmg_file" "$url"; then
+    print_error "Failed to download $name"
+    return 1
+  fi
 
-    if [[ -z "$mount_point" ]]; then
-      # Try alternative parsing
-      mount_point=$(hdiutil attach "$dmg_file" -nobrowse -quiet | grep "/Volumes" | sed 's/.*\(\/Volumes\/.*\)/\1/')
-    fi
+  print_info "Mounting $name..."
+  local plist_output mount_point
+  plist_output=$(hdiutil attach "$dmg_file" -nobrowse -plist 2>/dev/null) || {
+    print_error "Failed to mount $name DMG"
+    return 1
+  }
 
-    if [[ -d "$mount_point" ]]; then
-      # Find .app in the mounted volume
-      local app_path
-      app_path=$(find "$mount_point" -maxdepth 2 -name "*.app" -type d | head -1)
+  # Extract mount point from structured plist output via plutil
+  mount_point=$(echo "$plist_output" | plutil -extract 'system-entities' json -o - - 2>/dev/null \
+    | python3 -c "import sys,json; entities=json.load(sys.stdin); print(next((e['mount-point'] for e in entities if 'mount-point' in e), ''))" 2>/dev/null)
 
-      if [[ -n "$app_path" ]]; then
-        print_info "Copying $name to /Applications..."
-        if cp -R "$app_path" /Applications/; then
-          print_success "$name installed"
-        else
-          print_error "Failed to copy $name to /Applications"
-        fi
-      else
-        # Maybe it has a .pkg inside the DMG
-        local pkg_path
-        pkg_path=$(find "$mount_point" -maxdepth 2 -name "*.pkg" -type f | head -1)
-        if [[ -n "$pkg_path" ]]; then
-          print_info "Found .pkg inside DMG, installing..."
-          if sudo installer -pkg "$pkg_path" -target /; then
-            print_success "$name installed"
-          else
-            print_error "Failed to install $name from .pkg"
-          fi
-        else
-          print_error "No .app or .pkg found in $name DMG"
-        fi
-      fi
+  if [[ -z "$mount_point" || ! -d "$mount_point" ]]; then
+    print_error "Failed to determine mount point for $name DMG"
+    return 1
+  fi
 
-      hdiutil detach "$mount_point" -quiet 2>/dev/null || true
+  # Find .app in the mounted volume
+  local app_path
+  app_path=$(find "$mount_point" -maxdepth 2 -name "*.app" -type d | head -1)
+
+  if [[ -n "$app_path" ]]; then
+    print_info "Copying $name to /Applications..."
+    if cp -R "$app_path" /Applications/; then
+      print_success "$name installed"
     else
-      print_error "Failed to mount $name DMG"
+      print_error "Failed to copy $name to /Applications"
     fi
   else
-    print_error "Failed to download $name"
+    # Maybe it has a .pkg inside the DMG
+    local pkg_path
+    pkg_path=$(find "$mount_point" -maxdepth 2 -name "*.pkg" -type f | head -1)
+    if [[ -n "$pkg_path" ]]; then
+      print_info "Found .pkg inside DMG, installing..."
+      if sudo installer -pkg "$pkg_path" -target /; then
+        print_success "$name installed"
+      else
+        print_error "Failed to install $name from .pkg"
+      fi
+    else
+      print_error "No .app or .pkg found in $name DMG"
+    fi
   fi
+
+  hdiutil detach "$mount_point" -quiet 2>/dev/null || true
 }
 
 ###############################################################################

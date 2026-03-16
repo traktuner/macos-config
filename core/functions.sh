@@ -127,20 +127,19 @@ retry() {
   print_success "Command '$*' succeeded on attempt $attempt."
 }
 
-# -- defaults write wrapper (catches errors, never exits)
+# -- defaults write wrapper (logs stderr, returns actual exit code)
 safe_defaults_write() {
   local target="$1"; shift
+  local stderr_output rc=0
   if [[ "$target" = /* ]]; then
-    if sudo defaults write "$target" "$@" 2>/dev/null; then
-      return 0
-    fi
+    stderr_output=$(sudo defaults write "$target" "$@" 2>&1 >/dev/null) || rc=$?
   else
-    if defaults write "$target" "$@" 2>/dev/null; then
-      return 0
-    fi
+    stderr_output=$(defaults write "$target" "$@" 2>&1 >/dev/null) || rc=$?
   fi
-  print_error "defaults write failed for: $target $*"
-  return 0
+  if [[ $rc -ne 0 ]]; then
+    print_error "defaults write failed for: $target $* (rc=$rc: $stderr_output)"
+  fi
+  return $rc
 }
 
 # -- PlistBuddy wrapper

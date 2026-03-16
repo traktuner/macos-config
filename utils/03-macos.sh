@@ -336,19 +336,35 @@ print_success "Background services optimized"
 
 ###############################################################################
 # Spotlight — disable web suggestions (reduces network calls)
+# Uses defaults import with proper XML plist instead of old-style array literals
 ###############################################################################
 print_info "Configuring Spotlight..."
-safe_defaults_write com.apple.spotlight orderedItems -array \
-  '{"enabled" = 1; "name" = "APPLICATIONS";}' \
-  '{"enabled" = 1; "name" = "MENU_EXPRESSION";}' \
-  '{"enabled" = 1; "name" = "CONTACT";}' \
-  '{"enabled" = 1; "name" = "MENU_CONVERSION";}' \
-  '{"enabled" = 1; "name" = "MENU_DEFINITION";}' \
-  '{"enabled" = 1; "name" = "SYSTEM_PREFS";}' \
-  '{"enabled" = 1; "name" = "DOCUMENTS";}' \
-  '{"enabled" = 1; "name" = "DIRECTORIES";}' \
-  '{"enabled" = 0; "name" = "MENU_SPOTLIGHT_SUGGESTIONS";}' \
-  '{"enabled" = 0; "name" = "MENU_WEBSEARCH";}'
+SPOTLIGHT_PLIST=$(mktemp /tmp/spotlight-XXXXXX.plist)
+cat > "$SPOTLIGHT_PLIST" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>orderedItems</key>
+  <array>
+    <dict><key>enabled</key><true/><key>name</key><string>APPLICATIONS</string></dict>
+    <dict><key>enabled</key><true/><key>name</key><string>MENU_EXPRESSION</string></dict>
+    <dict><key>enabled</key><true/><key>name</key><string>CONTACT</string></dict>
+    <dict><key>enabled</key><true/><key>name</key><string>MENU_CONVERSION</string></dict>
+    <dict><key>enabled</key><true/><key>name</key><string>MENU_DEFINITION</string></dict>
+    <dict><key>enabled</key><true/><key>name</key><string>SYSTEM_PREFS</string></dict>
+    <dict><key>enabled</key><true/><key>name</key><string>DOCUMENTS</string></dict>
+    <dict><key>enabled</key><true/><key>name</key><string>DIRECTORIES</string></dict>
+    <dict><key>enabled</key><false/><key>name</key><string>MENU_SPOTLIGHT_SUGGESTIONS</string></dict>
+    <dict><key>enabled</key><false/><key>name</key><string>MENU_WEBSEARCH</string></dict>
+  </array>
+</dict>
+</plist>
+PLIST
+defaults import com.apple.spotlight "$SPOTLIGHT_PLIST" 2>/dev/null \
+  && print_success "Spotlight orderedItems configured" \
+  || print_error "Failed to import Spotlight configuration"
+rm -f "$SPOTLIGHT_PLIST"
 
 ###############################################################################
 # Wallpaper

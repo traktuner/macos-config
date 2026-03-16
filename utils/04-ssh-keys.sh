@@ -53,19 +53,26 @@ ENCODED_PASS=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sy
 ENCODED_USER=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_USER")
 
 # Mount via AppleScript — uses NetFS framework like Finder, auto-creates /Volumes/share
-if ! osascript -e "mount volume \"smb://${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}\"" &>/dev/null; then
+# osascript returns the mount path as HFS reference (e.g. "file Macintosh HD:Volumes:tom:")
+OSASCRIPT_OUT=""
+if ! OSASCRIPT_OUT=$(osascript -e "mount volume \"smb://${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}\"" 2>/dev/null); then
   print_error "Failed to mount SMB share (check credentials and network)"
   unset ENCODED_PASS ENCODED_USER SMB_PASS
   exit 1
 fi
 unset ENCODED_PASS ENCODED_USER SMB_PASS
 
-# Find the actual mount point (Finder may create /Volumes/tom or /Volumes/tom-1 etc.)
-sleep 2
-MOUNT_POINT=$(mount | grep "${SMB_SERVER}/${SMB_SHARE}" | awk '{print $3}' | head -1)
+# Parse mount path from osascript return value (HFS path → POSIX path)
+if [[ -n "$OSASCRIPT_OUT" ]]; then
+  MOUNT_POINT=$(osascript -e "POSIX path of \"$OSASCRIPT_OUT\"" 2>/dev/null | sed 's:/$::')
+fi
 
-if [[ -z "$MOUNT_POINT" || ! -d "$MOUNT_POINT" ]]; then
-  # Fallback: check common mount point names
+# Fallback: search mount table and common paths if osascript parsing failed
+if [[ -z "${MOUNT_POINT:-}" || ! -d "${MOUNT_POINT:-}" ]]; then
+  sleep 2
+  MOUNT_POINT=$(mount | grep "${SMB_SERVER}/${SMB_SHARE}" | awk '{print $3}' | head -1)
+fi
+if [[ -z "${MOUNT_POINT:-}" || ! -d "${MOUNT_POINT:-}" ]]; then
   for candidate in "/Volumes/${SMB_SHARE}" "/Volumes/${SMB_SHARE}-1" "/Volumes/${SMB_SHARE}-2"; do
     if [[ -d "$candidate" ]]; then
       MOUNT_POINT="$candidate"
@@ -74,7 +81,7 @@ if [[ -z "$MOUNT_POINT" || ! -d "$MOUNT_POINT" ]]; then
   done
 fi
 
-if [[ -z "$MOUNT_POINT" || ! -d "$MOUNT_POINT" ]]; then
+if [[ -z "${MOUNT_POINT:-}" || ! -d "${MOUNT_POINT:-}" ]]; then
   print_error "SMB share mounted but mount point not found"
   exit 1
 fi
