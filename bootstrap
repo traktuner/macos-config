@@ -22,7 +22,7 @@ export -f insert_to_file_after_line_number uncomment_line prepend_string_to_file
 export -f line_exists add_config get_arch command_exists
 export -f retry safe_defaults_write safe_plistbuddy safe_killall
 export -f ensure_directory download_file bootstrap_launch_daemon tm_snapshot
-export -f request_full_disk_access check_macos_version
+export -f check_full_disk_access request_full_disk_access check_macos_version
 
 # System validation
 print_info "Validating system requirements..."

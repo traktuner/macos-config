@@ -248,35 +248,48 @@ check_macos_version() {
   fi
 }
 
-# -- Request Full Disk Access for Terminal
+# -- Verify Full Disk Access by reading Safari bookmarks (reliable test on all macOS versions)
+check_full_disk_access() {
+  local safari_bookmarks="$HOME/Library/Safari/Bookmarks.plist"
+  if cat "$safari_bookmarks" &>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+# -- Request Full Disk Access for Terminal (loop with max retries)
 request_full_disk_access() {
+  # Check if we already have FDA
+  if check_full_disk_access; then
+    print_success "Full Disk Access already granted"
+    return 0
+  fi
+
   print_info "Full Disk Access is required for Terminal..."
   print_info "Opening System Settings > Privacy & Security > Full Disk Access..."
-
   open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
 
-  print_info "Please enable Terminal (or your terminal app) in Full Disk Access, then return here."
-  echo
-  ask_for_confirmation "Have you enabled Full Disk Access for Terminal?"
+  local max_attempts=3
+  local attempt=1
 
-  if answer_is_yes; then
-    # Test FDA by trying to read the system TCC database
-    if [[ -r "/Library/Application Support/com.apple.TCC/TCC.db" ]] 2>/dev/null; then
+  while ((attempt <= max_attempts)); do
+    print_info "Please enable your terminal app in Full Disk Access, then press any key."
+    print_info "(Attempt $attempt of $max_attempts)"
+    read -n1 -r -s; printf "\n"
+
+    print_info "Verifying Full Disk Access..."
+    if check_full_disk_access; then
       print_success "Full Disk Access verified!"
       return 0
     fi
 
-    # Fallback: try reading user TCC database
-    if [[ -r "$HOME/Library/Application Support/com.apple.TCC/TCC.db" ]] 2>/dev/null; then
-      print_success "Full Disk Access verified!"
-      return 0
+    print_error "Full Disk Access not detected."
+    if ((attempt < max_attempts)); then
+      print_info "Make sure you toggled the switch for your terminal app and try again."
     fi
+    ((attempt++))
+  done
 
-    # If we can't verify, trust the user's confirmation
-    print_info "Could not auto-verify FDA, proceeding based on your confirmation."
-    return 0
-  else
-    print_error "Full Disk Access is required to continue."
-    return 1
-  fi
+  print_error "Full Disk Access could not be verified after $max_attempts attempts. Aborting."
+  return 1
 }
