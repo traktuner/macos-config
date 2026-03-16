@@ -69,7 +69,33 @@ else
   INSTALL_MAS_APPS=false
 fi
 
-# 6) Install from Brewfile
+# 6) Prefetch all downloads (with retries) so install phase is fast and offline-safe
+print_info "Prefetching formulas..."
+FETCH_FAILED=()
+for f in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --formula 2>/dev/null); do
+  if ! retry 5 10 brew fetch "$f" >/dev/null 2>&1; then
+    print_error "Failed to fetch formula: $f"
+    FETCH_FAILED+=("brew $f")
+  fi
+done
+
+print_info "Prefetching casks..."
+for c in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --cask 2>/dev/null); do
+  if ! retry 5 10 brew fetch --cask "$c" >/dev/null 2>&1; then
+    print_error "Failed to fetch cask: $c"
+    FETCH_FAILED+=("cask $c")
+  fi
+done
+
+if [[ ${#FETCH_FAILED[@]} -gt 0 ]]; then
+  print_error "${#FETCH_FAILED[@]} item(s) failed to download:"
+  for item in "${FETCH_FAILED[@]}"; do
+    print_error "  - $item"
+  done
+  print_info "Continuing with installation of successfully fetched items..."
+fi
+
+# 7) Install from Brewfile
 print_info "Installing from Brewfile..."
 
 if [[ "$INSTALL_MAS_APPS" == false ]]; then
@@ -81,19 +107,19 @@ else
   brew bundle --file="$ROOT_DIR/core/Brewfile" || print_error "Some Brewfile items failed"
 fi
 
-# 7) Upgrade and cleanup
+# 8) Upgrade and cleanup
 print_info "Running brew maintenance..."
 brew upgrade || true
 brew cleanup --prune=30
 
-# 8) Health check
+# 9) Health check
 if brew doctor 2>/dev/null; then
   print_success "brew doctor: OK"
 else
   print_error "brew doctor reported issues (check output above)"
 fi
 
-# 9) Post-installation verification
+# 10) Post-installation verification
 print_info "Verifying key installations..."
 local_failed=0
 for app in "Visual Studio Code" "Firefox" "Warp"; do
