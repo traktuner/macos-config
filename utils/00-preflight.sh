@@ -30,12 +30,13 @@ else
 fi
 
 # 2) toggleAirport - auto-disable Wi-Fi when Ethernet is connected
+#    Script is self-installing: it generates its own LaunchDaemon plist with
+#    LaunchEvents/notifyd trigger (replaces old WatchPaths which didn't work on Tahoe)
 TOGGLER="/Library/Scripts/toggleAirport.sh"
-PLIST="/Library/LaunchDaemons/com.mine.toggleairport.plist"
-ensure_directory "/Library/Scripts" true
 
-print_info "Installing toggleAirport script and LaunchDaemon..."
+print_info "Installing toggleAirport..."
 download_file "https://gist.githubusercontent.com/traktuner/8431e9daf006c0c1d246b8a4766f15b4/raw/toggleAirport.sh" "$TOGGLER" 755 true
-download_file "https://gist.githubusercontent.com/traktuner/8431e9daf006c0c1d246b8a4766f15b4/raw/com.mine.toggleairport.plist" "$PLIST" 644 true
-sudo chown root:wheel "$TOGGLER" "$PLIST"
-bootstrap_launch_daemon "$PLIST"
+sudo chown root:wheel "$TOGGLER"
+
+# Self-install: generates plist + loads LaunchDaemon
+sudo "$TOGGLER" on
