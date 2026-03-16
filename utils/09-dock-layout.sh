@@ -4,8 +4,17 @@ set -euo pipefail
 source "$ROOT_DIR/core/functions.sh"
 print_info "Configuring Dock layout"
 
-# Require dockutil
-if ! command_exists dockutil; then
+# Resolve dockutil binary (may not be in PATH if Homebrew was just installed in this session)
+DOCKUTIL=""
+if command_exists dockutil; then
+  DOCKUTIL="dockutil"
+elif [[ -x "/opt/homebrew/bin/dockutil" ]]; then
+  DOCKUTIL="/opt/homebrew/bin/dockutil"
+elif [[ -x "/usr/local/bin/dockutil" ]]; then
+  DOCKUTIL="/usr/local/bin/dockutil"
+fi
+
+if [[ -z "$DOCKUTIL" ]]; then
   print_error "dockutil not found. Install it first (brew install dockutil)."
   exit 1
 fi
@@ -32,14 +41,13 @@ DOCK_APPS=(
   "/Applications/Microsoft Teams.app"
   "/Applications/Visual Studio Code.app"
   "/System/Applications/App Store.app"
-  "/System/Applications/System Settings.app"
 )
 
 ###############################################################################
 # 1) Remove all existing Dock items
 ###############################################################################
 print_info "Removing all current Dock items..."
-dockutil --remove all --no-restart
+"$DOCKUTIL" --remove all --no-restart
 
 ###############################################################################
 # 2) Add apps in order
@@ -49,7 +57,7 @@ added=0
 for app in "${DOCK_APPS[@]}"; do
   app_name="$(basename "$app" .app)"
   if [[ -d "$app" ]]; then
-    dockutil --add "$app" --no-restart
+    "$DOCKUTIL" --add "$app" --no-restart
     print_success "  Added: $app_name"
     ((added++))
   else
@@ -64,11 +72,11 @@ print_info "$added apps added to Dock"
 print_info "Adding folder stacks..."
 
 # Applications folder as stack (grid view, sorted by name)
-dockutil --add /Applications --view grid --display folder --sort name --section others --no-restart
+"$DOCKUTIL" --add /Applications --view grid --display folder --sort name --section others --no-restart
 print_success "  Added: Applications (stack)"
 
 # Downloads folder as stack (fan view, sorted by date modified)
-dockutil --add "$HOME/Downloads" --view fan --display stack --sort datemodified --section others --no-restart
+"$DOCKUTIL" --add "$HOME/Downloads" --view fan --display stack --sort datemodified --section others --no-restart
 print_success "  Added: Downloads (stack, sorted by modification date)"
 
 ###############################################################################
