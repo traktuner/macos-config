@@ -22,8 +22,9 @@ set_default_app_for_scheme() {
 
   print_info "Setting $app_name as default for $scheme..."
 
-  local result
-  result=$(swift - "$scheme" "$app_path" 2>&1 <<'SWIFT'
+  # Run Swift in a subshell so set -e doesn't kill the whole script on failure
+  local rc=0
+  swift - "$scheme" "$app_path" <<'SWIFT' || rc=$?
 import AppKit
 import Foundation
 
@@ -52,13 +53,12 @@ NSWorkspace.shared.setDefaultApplication(
 _ = semaphore.wait(timeout: .now() + 10)
 exit(exitCode)
 SWIFT
-  )
 
-  if [[ $? -eq 0 ]]; then
+  if [[ $rc -eq 0 ]]; then
     print_success "$app_name set as default for $scheme"
     return 0
   else
-    print_error "Failed to set $app_name as default for $scheme: $result"
+    print_error "Failed to set $app_name as default for $scheme (exit code: $rc)"
     return 1
   fi
 }
@@ -67,7 +67,7 @@ SWIFT
 # Default Mail App: Proton Mail
 ###############################################################################
 if [[ -d "/Applications/Proton Mail.app" ]]; then
-  set_default_app_for_scheme "mailto" "/Applications/Proton Mail.app" "Proton Mail"
+  set_default_app_for_scheme "mailto" "/Applications/Proton Mail.app" "Proton Mail" || true
 else
   print_error "Proton Mail not installed — skipping default mail setup"
 fi
@@ -81,16 +81,15 @@ if [[ -d "/Applications/Firefox.app" ]]; then
   if command_exists defaultbrowser; then
     print_info "Setting Firefox as default browser..."
     print_info "macOS will show a confirmation dialog — please click 'Use Firefox'."
-    # Small delay so the user can read the message
     sleep 2
-    defaultbrowser firefox
+    defaultbrowser firefox || print_error "defaultbrowser returned an error (dialog may not have been confirmed)"
     print_success "Firefox default browser request sent (confirm the dialog if prompted)"
   else
     # Fallback: use Swift API (also triggers dialog)
     print_info "macOS will show a confirmation dialog — please click 'Use Firefox'."
     sleep 2
-    set_default_app_for_scheme "http" "/Applications/Firefox.app" "Firefox"
-    set_default_app_for_scheme "https" "/Applications/Firefox.app" "Firefox"
+    set_default_app_for_scheme "http" "/Applications/Firefox.app" "Firefox" || true
+    set_default_app_for_scheme "https" "/Applications/Firefox.app" "Firefox" || true
   fi
 else
   print_error "Firefox not installed — skipping default browser setup"
