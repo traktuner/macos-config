@@ -5,10 +5,10 @@ source "$ROOT_DIR/core/functions.sh"
 print_info "SSH Keyfiles - mount SMB share and copy keys"
 
 # Configuration
-SMB_SERVER="172.16.10.100"
-SMB_SHARE="tresor"
-SMB_SUBDIR="ssh"
-MOUNT_POINT="/Volumes/ssh"
+SMB_SERVER="172.16.10.200"
+SMB_SHARE="tom"
+SMB_SUBDIR="tresor/ssh"
+MOUNT_POINT="/Volumes/tom"
 TARGET_DIR="$HOME/.ssh"
 TIMEOUT=30
 
@@ -49,10 +49,12 @@ sudo mkdir -p "${MOUNT_POINT}"
 # Use mount_smbfs with credentials passed via URL (more secure than open command)
 # The password is URL-encoded to handle special characters
 ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${SMB_PASS}', safe=''))")
-if ! mount_smbfs "//$(printf '%s' "${SMB_USER}"):$(printf '%s' "${ENCODED_PASS}")@${SMB_SERVER}/${SMB_SHARE}/${SMB_SUBDIR}" "${MOUNT_POINT}" 2>/dev/null; then
+
+# Mount the share root, then access the subfolder
+if ! mount_smbfs "//$(printf '%s' "${SMB_USER}"):$(printf '%s' "${ENCODED_PASS}")@${SMB_SERVER}/${SMB_SHARE}" "${MOUNT_POINT}" 2>/dev/null; then
   # Fallback: try opening Finder for GUI-based mounting
   print_info "mount_smbfs failed, trying Finder-based mount..."
-  open "smb://${SMB_USER}@${SMB_SERVER}/${SMB_SHARE}/${SMB_SUBDIR}" || true
+  open "smb://${SMB_USER}@${SMB_SERVER}/${SMB_SHARE}" || true
 
   print_info "Waiting up to ${TIMEOUT}s for ${MOUNT_POINT}..."
   elapsed=0
@@ -69,8 +71,15 @@ if [[ ! -d "${MOUNT_POINT}" ]]; then
 fi
 print_success "SMB share mounted at ${MOUNT_POINT}"
 
+# Source directory within the mounted share
+SOURCE_DIR="${MOUNT_POINT}/${SMB_SUBDIR}"
+if [[ ! -d "$SOURCE_DIR" ]]; then
+  print_error "SSH key directory not found at ${SOURCE_DIR}"
+  exit 1
+fi
+
 # 5) Copy SSH keys if any exist
-if compgen -G "${MOUNT_POINT}/*" > /dev/null; then
+if compgen -G "${SOURCE_DIR}/*" > /dev/null; then
   print_info "Copying SSH keys to ${TARGET_DIR}..."
 
   # Create backup of existing keys
@@ -82,7 +91,7 @@ if compgen -G "${MOUNT_POINT}/*" > /dev/null; then
   fi
 
   # Copy new keys
-  if cp -R "${MOUNT_POINT}"/* "${TARGET_DIR}/"; then
+  if cp -R "${SOURCE_DIR}"/* "${TARGET_DIR}/"; then
     print_success "SSH keys copied"
 
     # Set correct permissions on SSH files
@@ -112,7 +121,7 @@ if compgen -G "${MOUNT_POINT}/*" > /dev/null; then
     print_error "Failed to copy SSH keys"
   fi
 else
-  print_error "No files found under ${MOUNT_POINT}; skipping copy."
+  print_error "No files found under ${SOURCE_DIR}; skipping copy."
 fi
 
 # 6) Unmount the share
