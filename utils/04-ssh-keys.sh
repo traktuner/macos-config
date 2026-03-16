@@ -37,29 +37,37 @@ ensure_directory "${TARGET_DIR}" false
 chmod 700 "${TARGET_DIR}"
 print_success "SSH directory prepared (700)"
 
-# 3) Unmount stale share if present
+# 3) Clean up stale mount point
 if mount | grep -q "on ${MOUNT_POINT} "; then
   print_info "Unmounting stale share at ${MOUNT_POINT}..."
-  diskutil unmount "${MOUNT_POINT}" &>/dev/null || true
+  diskutil unmount "${MOUNT_POINT}" &>/dev/null || umount "${MOUNT_POINT}" &>/dev/null || true
+fi
+# Remove leftover empty directory (mount_smbfs fails with "File exists" if it exists)
+if [[ -d "${MOUNT_POINT}" ]] && ! mount | grep -q "on ${MOUNT_POINT} "; then
+  rmdir "${MOUNT_POINT}" 2>/dev/null || sudo rmdir "${MOUNT_POINT}" 2>/dev/null || true
 fi
 
 # 4) Mount SMB share (as current user, not root)
 print_info "Mounting SMB share..."
 mkdir -p "${MOUNT_POINT}" 2>/dev/null || sudo mkdir -p "${MOUNT_POINT}"
 
-# URL-encode password safely via stdin (never on command line / visible in ps)
+# URL-encode credentials safely via stdin (never on command line / visible in ps)
 ENCODED_PASS=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_PASS")
 ENCODED_USER=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_USER")
 
-# Mount as current user (no sudo!) to avoid permission issues
-if mount_smbfs "//${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}" "${MOUNT_POINT}" 2>&1; then
+# Mount — redirect stderr to /dev/null to prevent credentials appearing in error output
+MOUNT_ERR=$(mount_smbfs "//${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}" "${MOUNT_POINT}" 2>&1) || true
+unset ENCODED_PASS ENCODED_USER SMB_PASS
+
+# Check if mount succeeded
+if mount | grep -q "on ${MOUNT_POINT} "; then
   print_success "SMB share mounted at ${MOUNT_POINT}"
 else
-  print_error "mount_smbfs failed"
-  unset ENCODED_PASS ENCODED_USER SMB_PASS
+  # Sanitize error message: remove credentials from output
+  SAFE_ERR=$(echo "$MOUNT_ERR" | sed "s|//[^@]*@|//***:***@|g")
+  print_error "mount_smbfs failed: $SAFE_ERR"
   exit 1
 fi
-unset ENCODED_PASS ENCODED_USER SMB_PASS
 
 # Wait for mount to become accessible
 print_info "Waiting for share to become accessible..."
