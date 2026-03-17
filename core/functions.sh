@@ -202,18 +202,11 @@ bootstrap_launch_daemon() {
     $SUDO plutil -lint "$plist" || true
     return 1
   fi
-  $SUDO launchctl bootout system "$plist" &>/dev/null || true
-  if $SUDO launchctl bootstrap system "$plist"; then
-    local label
-    label="$(
-      /usr/libexec/PlistBuddy -c 'Print :Label' "$plist" 2>/dev/null \
-      || basename "$plist" .plist
-    )"
-    $SUDO launchctl enable "system/${label}" &>/dev/null || true
-    $SUDO launchctl kickstart -k "system/${label}" &>/dev/null || true
-    print_success "Bootstrapped $plist"
+  $SUDO launchctl unload -w "$plist" &>/dev/null || true
+  if $SUDO launchctl load -w "$plist"; then
+    print_success "Loaded $plist"
   else
-    print_error "Failed to bootstrap $plist"
+    print_error "Failed to load $plist"
     return 1
   fi
 }
