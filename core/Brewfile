@@ -13,6 +13,7 @@ brew 'zsh-syntax-highlighting'
 brew 'zsh-autosuggestions'
 brew 'zsh-completions'
 brew 'starship'
+brew 'ansible'
 
 # Browsers
 cask 'firefox'
