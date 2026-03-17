@@ -70,10 +70,3 @@ mas 'CEWE Fotoservice', id: 1446275768
 mas 'HP', id: 1474276998
 mas 'Speedtest', id: 1153157709
 mas 'Apple Configurator', id: 1037126344
-
-# Extensions
-#mas '1Blocker', id: 1365531024
-#mas 'Noir', id: 1592917505
-#mas 'Proton Pass for Safari', id: 6502835663
-#mas 'StopTheMadness Pro', id: 6471380298
-#mas 'Wayback Machine', id: 1472432422
