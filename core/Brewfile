@@ -8,6 +8,12 @@ brew 'tailscale'
 brew 'defaultbrowser'
 brew 'dockutil'
 
+# Shell enhancements (for Terminal.app and SSH sessions)
+brew 'zsh-syntax-highlighting'
+brew 'zsh-autosuggestions'
+brew 'zsh-completions'
+brew 'starship'
+
 # Browsers
 cask 'firefox'
 cask 'ungoogled-chromium'
@@ -33,7 +39,6 @@ cask 'microsoft-teams'
 cask 'claude'
 
 # Productivity
-cask 'warp'
 cask 'keepingyouawake'
 cask 'opencloud'
 cask 'visual-studio-code'
