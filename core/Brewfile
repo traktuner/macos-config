@@ -20,7 +20,7 @@ cask 'ungoogled-chromium'
 
 # Privacy & Security
 cask 'cryptomator'
-cask 'little-snitch'
+cask 'lulu'
 cask 'microsoft-defender'
 
 # Proton Suite
@@ -54,8 +54,7 @@ cask 'jellyfin-media-player'
 
 # Backup & Maintenance
 cask 'appcleaner'
-cask 'betterzip'
-cask 'daisydisk'
+cask 'keka'
 cask 'crashplan'
 
 # Emulation & Gaming
