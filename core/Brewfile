@@ -21,7 +21,7 @@ cask 'ungoogled-chromium'
 
 # Privacy & Security
 cask 'cryptomator'
-cask 'lulu'
+cask 'little-snitch'
 cask 'microsoft-defender'
 
 # Proton Suite
