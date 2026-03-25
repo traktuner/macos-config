@@ -25,11 +25,11 @@ fi
 # System apps are in /System/Applications, third-party in /Applications.
 ###############################################################################
 DOCK_APPS=(
-  "/System/Applications/Safari.app"
+  "/Applications/Safari.app"
   "/Applications/Firefox.app"
   "/Applications/Proton Mail.app"
   "/System/Applications/Messages.app"
-  "/Applications/Beeper.app"
+  "/Applications/Beeper Desktop.app"
   "/Applications/Standard Notes.app"
   "/System/Applications/Photos.app"
   "/System/Applications/Music.app"
