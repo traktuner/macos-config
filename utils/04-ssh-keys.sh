@@ -8,16 +8,15 @@ print_info "SSH Keyfiles - mount SMB share and copy keys"
 SMB_SERVER="172.16.10.200"
 SMB_SHARE="tom"
 SMB_SUBDIR="tresor/ssh"
-MOUNT_POINT=""  # set dynamically after mount
+MOUNT_POINT="/Volumes/ssh_mount_$$"
 TARGET_DIR="$HOME/.ssh"
-TIMEOUT=30
 
 # Cleanup function to ensure sensitive data and mounts are cleaned up
 cleanup() {
   unset ENCODED_PASS ENCODED_USER SMB_PASS 2>/dev/null || true
-  if [[ -n "${MOUNT_POINT:-}" ]] && mount | grep -q "on ${MOUNT_POINT} "; then
-    diskutil unmount "${MOUNT_POINT}" &>/dev/null || \
-      umount "${MOUNT_POINT}" &>/dev/null || true
+  if [[ -d "${MOUNT_POINT}" ]]; then
+    umount "${MOUNT_POINT}" &>/dev/null || diskutil unmount "${MOUNT_POINT}" &>/dev/null || true
+    rmdir "${MOUNT_POINT}" &>/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -37,63 +36,26 @@ ensure_directory "${TARGET_DIR}" false
 chmod 700 "${TARGET_DIR}"
 print_success "SSH directory prepared (700)"
 
-# 3) Check if this share is already mounted somewhere
-EXISTING_MOUNT=$(mount | grep "${SMB_SERVER}/${SMB_SHARE}" | awk '{print $3}' | head -1)
-if [[ -n "$EXISTING_MOUNT" ]]; then
-  print_info "Share already mounted at ${EXISTING_MOUNT}, unmounting..."
-  diskutil unmount "$EXISTING_MOUNT" &>/dev/null || umount "$EXISTING_MOUNT" &>/dev/null || true
-  sleep 1
-fi
-
-# 4) Mount SMB share via osascript (same code path as Finder — auto-creates mount point)
-print_info "Mounting SMB share..."
+# 3) Mount SMB share via mount_smbfs (official macOS CLI mount)
+print_info "Mounting smb://${SMB_SERVER}/${SMB_SHARE}..."
 
 # URL-encode credentials safely via stdin (never on command line / visible in ps)
 ENCODED_PASS=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_PASS")
 ENCODED_USER=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_USER")
+unset SMB_PASS
 
-# Mount via AppleScript — uses NetFS framework like Finder, auto-creates /Volumes/share
-# osascript returns the mount path as HFS reference (e.g. "file Macintosh HD:Volumes:tom:")
-OSASCRIPT_OUT=""
-if ! OSASCRIPT_OUT=$(osascript -e "mount volume \"smb://${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}\"" 2>/dev/null); then
-  print_error "Failed to mount SMB share (check credentials and network)"
-  unset ENCODED_PASS ENCODED_USER SMB_PASS
+# Create mount point
+sudo mkdir -p "${MOUNT_POINT}"
+
+# mount_smbfs — the official macOS way to mount SMB from CLI
+if ! mount_smbfs "//${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}" "${MOUNT_POINT}" 2>/dev/null; then
+  unset ENCODED_PASS ENCODED_USER
+  sudo rmdir "${MOUNT_POINT}" &>/dev/null || true
+  print_error "Failed to mount SMB share (check credentials, network, and share name)"
   exit 1
 fi
-unset ENCODED_PASS ENCODED_USER SMB_PASS
-
-# Parse mount path from osascript return value (HFS path → POSIX path)
-if [[ -n "$OSASCRIPT_OUT" ]]; then
-  MOUNT_POINT=$(osascript -e "POSIX path of \"$OSASCRIPT_OUT\"" 2>/dev/null | sed 's:/$::')
-fi
-
-# Fallback: search mount table and common paths if osascript parsing failed
-if [[ -z "${MOUNT_POINT:-}" || ! -d "${MOUNT_POINT:-}" ]]; then
-  sleep 2
-  MOUNT_POINT=$(mount | grep "${SMB_SERVER}/${SMB_SHARE}" | awk '{print $3}' | head -1)
-fi
-if [[ -z "${MOUNT_POINT:-}" || ! -d "${MOUNT_POINT:-}" ]]; then
-  for candidate in "/Volumes/${SMB_SHARE}" "/Volumes/${SMB_SHARE}-1" "/Volumes/${SMB_SHARE}-2"; do
-    if [[ -d "$candidate" ]]; then
-      MOUNT_POINT="$candidate"
-      break
-    fi
-  done
-fi
-
-if [[ -z "${MOUNT_POINT:-}" || ! -d "${MOUNT_POINT:-}" ]]; then
-  print_error "SMB share mounted but mount point not found"
-  exit 1
-fi
+unset ENCODED_PASS ENCODED_USER
 print_success "SMB share mounted at ${MOUNT_POINT}"
-
-# Wait for mount to become accessible
-print_info "Waiting for share to become accessible..."
-elapsed=0
-while [[ ! -d "${MOUNT_POINT}/${SMB_SUBDIR}" && ${elapsed} -lt ${TIMEOUT} ]]; do
-  sleep 1
-  (( elapsed++ ))
-done
 
 # Source directory within the mounted share
 SOURCE_DIR="${MOUNT_POINT}/${SMB_SUBDIR}"
@@ -155,10 +117,10 @@ fi
 
 # 6) Unmount the share
 print_info "Unmounting ${MOUNT_POINT}..."
-if diskutil unmount "${MOUNT_POINT}" 2>/dev/null; then
+if umount "${MOUNT_POINT}" 2>/dev/null; then
+  sudo rmdir "${MOUNT_POINT}" &>/dev/null || true
+  MOUNT_POINT=""  # prevent cleanup trap from retrying
   print_success "Unmounted share"
-elif umount "${MOUNT_POINT}" 2>/dev/null; then
-  print_success "Unmounted share (umount)"
 else
   print_error "Failed to unmount share (will be cleaned up on exit)"
 fi

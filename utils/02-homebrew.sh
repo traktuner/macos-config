@@ -59,14 +59,33 @@ for t in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --tap 2>/dev/null);
   brew tap "$t" 2>/dev/null || print_error "Failed to tap $t"
 done
 
-# 5) Prompt whether to install Mac App Store (MAS) apps
-print_info "Mac App Store (MAS) App Installation"
-print_info "Note: MAS apps require being signed in to the App Store and may prompt for your password."
-ask_for_confirmation "Install Mac App Store apps?"
-if answer_is_yes; then
-  INSTALL_MAS_APPS=true
+# 5) Check Mac App Store sign-in and decide whether to install MAS apps
+INSTALL_MAS_APPS=false
+if command_exists mas; then
+  # mas account exits 1 if not signed in (macOS Monterey+ removed programmatic sign-in)
+  if mas account &>/dev/null; then
+    print_success "App Store: signed in"
+    INSTALL_MAS_APPS=true
+  else
+    print_info "App Store: not signed in"
+    print_info "Please sign in via App Store.app to install MAS apps."
+    print_info "Opening App Store..."
+    open -a "App Store" 2>/dev/null || true
+    ask_for_confirmation "Have you signed in to the App Store?"
+    if answer_is_yes; then
+      if mas account &>/dev/null; then
+        print_success "App Store: signed in"
+        INSTALL_MAS_APPS=true
+      else
+        print_error "Still not signed in — skipping MAS apps"
+      fi
+    else
+      print_info "Skipping MAS apps"
+    fi
+  fi
 else
-  INSTALL_MAS_APPS=false
+  print_info "mas not yet installed — MAS apps will be installed if mas becomes available during brew bundle"
+  INSTALL_MAS_APPS=true
 fi
 
 # 6) Install from Brewfile (with up to 3 retries for transient download failures)
