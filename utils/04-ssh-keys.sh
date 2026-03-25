@@ -1,128 +1,139 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Load shared functions
 source "$ROOT_DIR/core/functions.sh"
-print_info "SSH Keyfiles - mount SMB share and copy keys"
+print_info "SSH Keyfiles – mounting SMB share via Finder and copying keys"
 
+# ─────────────────────────────────────────────────────────────────────────────
 # Configuration
-SMB_SERVER="172.16.10.200"
-SMB_SHARE="tom"
-SMB_SUBDIR="tresor/ssh"
-MOUNT_POINT="/Volumes/ssh_mount_$$"
+# ─────────────────────────────────────────────────────────────────────────────
+SMB_PATH="172.16.10.200/tom/tresor/ssh"
+MOUNT_POINT="/Volumes/ssh"
 TARGET_DIR="$HOME/.ssh"
+TIMEOUT=30
+SSH_PERMS=600
 
-# Cleanup function to ensure sensitive data and mounts are cleaned up
-cleanup() {
-  unset ENCODED_PASS ENCODED_USER SMB_PASS 2>/dev/null || true
-  if [[ -d "${MOUNT_POINT}" ]]; then
-    umount "${MOUNT_POINT}" &>/dev/null || diskutil unmount "${MOUNT_POINT}" &>/dev/null || true
-    rmdir "${MOUNT_POINT}" &>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
+# ─────────────────────────────────────────────────────────────────────────────
 # 1) Prompt for credentials
-read -rp "Please enter your SMB username: " SMB_USER
-read -rs -p "Please enter your SMB password: " SMB_PASS
+# ─────────────────────────────────────────────────────────────────────────────
+read -p "Please enter your SMB username: " SMB_USER
+read -s -p "Please enter your SMB password: " SMB_PASS
 echo
 
+# Validate input
 if [[ -z "$SMB_USER" || -z "$SMB_PASS" ]]; then
   print_error "Username and password cannot be empty"
   exit 1
 fi
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 2) Ensure target dir exists with proper permissions
+# ─────────────────────────────────────────────────────────────────────────────
 ensure_directory "${TARGET_DIR}" false
 chmod 700 "${TARGET_DIR}"
-print_success "SSH directory prepared (700)"
+print_success "SSH directory prepared with correct permissions"
 
-# 3) Mount SMB share via mount_smbfs (official macOS CLI mount)
-print_info "Mounting smb://${SMB_SERVER}/${SMB_SHARE}..."
+# ─────────────────────────────────────────────────────────────────────────────
+# 3) Unmount stale share if present
+# ─────────────────────────────────────────────────────────────────────────────
+if mount | grep -q "on ${MOUNT_POINT} "; then
+  print_info "Unmounting stale share at ${MOUNT_POINT}…"
+  sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null \
+    && print_success "Stale share unmounted" \
+    || print_error "Failed to unmount stale share"
+fi
 
-# URL-encode credentials safely via stdin (never on command line / visible in ps)
-ENCODED_PASS=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_PASS")
-ENCODED_USER=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))" <<< "$SMB_USER")
-unset SMB_PASS
+# ─────────────────────────────────────────────────────────────────────────────
+# 4) Trigger Finder mount (opens GUI prompt)
+# ─────────────────────────────────────────────────────────────────────────────
+print_info "Opening Finder to mount smb://…"
+open "smb://${SMB_USER}:${SMB_PASS}@${SMB_PATH}" || true
 
-# Create mount point
-sudo mkdir -p "${MOUNT_POINT}"
+# ─────────────────────────────────────────────────────────────────────────────
+# 5) Wait up to $TIMEOUT seconds for the mount-point to appear
+# ─────────────────────────────────────────────────────────────────────────────
+print_info "Waiting up to ${TIMEOUT}s for ${MOUNT_POINT}…"
+elapsed=0
+while [[ ! -d "${MOUNT_POINT}" && ${elapsed} -lt ${TIMEOUT} ]]; do
+  sleep 1
+  (( elapsed++ ))
+done
 
-# mount_smbfs — the official macOS way to mount SMB from CLI
-if ! mount_smbfs "//${ENCODED_USER}:${ENCODED_PASS}@${SMB_SERVER}/${SMB_SHARE}" "${MOUNT_POINT}" 2>/dev/null; then
-  unset ENCODED_PASS ENCODED_USER
-  sudo rmdir "${MOUNT_POINT}" &>/dev/null || true
-  print_error "Failed to mount SMB share (check credentials, network, and share name)"
+if [[ ! -d "${MOUNT_POINT}" ]]; then
+  print_error "Mount did not appear within ${TIMEOUT}s. Aborting."
+  unset SMB_PASS
   exit 1
 fi
-unset ENCODED_PASS ENCODED_USER
 print_success "SMB share mounted at ${MOUNT_POINT}"
 
-# Source directory within the mounted share
-SOURCE_DIR="${MOUNT_POINT}/${SMB_SUBDIR}"
-if [[ ! -d "$SOURCE_DIR" ]]; then
-  print_error "SSH key directory not found at ${SOURCE_DIR}"
-  print_info "Contents of ${MOUNT_POINT}:"
-  ls -la "${MOUNT_POINT}/" 2>/dev/null || true
-  exit 1
-fi
-
-# 5) Copy SSH keys if any exist
-if compgen -G "${SOURCE_DIR}/*" > /dev/null; then
-  print_info "Copying SSH keys to ${TARGET_DIR}..."
+# ─────────────────────────────────────────────────────────────────────────────
+# 6) Copy SSH keys if any exist
+# ─────────────────────────────────────────────────────────────────────────────
+if compgen -G "${MOUNT_POINT}/*" > /dev/null; then
+  print_info "Copying SSH keys to ${TARGET_DIR}…"
 
   # Create backup of existing keys
   if [[ -d "${TARGET_DIR}" && "$(ls -A "${TARGET_DIR}" 2>/dev/null)" ]]; then
     BACKUP_DIR="${TARGET_DIR}.backup.$(date +%Y%m%d_%H%M%S)"
     print_info "Creating backup of existing keys in ${BACKUP_DIR}"
     cp -R "${TARGET_DIR}" "${BACKUP_DIR}"
-    chmod 700 "${BACKUP_DIR}"
   fi
 
   # Copy new keys
-  if cp -R "${SOURCE_DIR}"/* "${TARGET_DIR}/"; then
+  if sudo cp -R "${MOUNT_POINT}"/* "${TARGET_DIR}/"; then
     print_success "SSH keys copied"
 
     # Set correct permissions on SSH files
-    print_info "Setting permissions on SSH files..."
-    # Private keys: 600 (all files without .pub extension, excluding known_hosts/config)
-    find "${TARGET_DIR}" -maxdepth 1 -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" ! -name "authorized_keys" -exec chmod 600 {} \;
-    # Public keys: 644
-    find "${TARGET_DIR}" -maxdepth 1 -type f -name "*.pub" -exec chmod 644 {} \;
-    # Config and special files
-    [[ -f "${TARGET_DIR}/config" ]] && chmod 600 "${TARGET_DIR}/config"
-    [[ -f "${TARGET_DIR}/authorized_keys" ]] && chmod 600 "${TARGET_DIR}/authorized_keys"
-    find "${TARGET_DIR}" -maxdepth 1 -type f -name "known_hosts*" -exec chmod 644 {} \;
+    print_info "Setting correct permissions on SSH files..."
+    find "${TARGET_DIR}" -type f -name "id_*" -exec sudo chmod ${SSH_PERMS} {} \;
+    find "${TARGET_DIR}" -type f -name "*.pub" -exec sudo chmod 644 {} \;
+    find "${TARGET_DIR}" -type f -name "known_hosts" -exec sudo chmod 644 {} \;
+    find "${TARGET_DIR}" -type f -name "config" -exec sudo chmod 600 {} \;
 
-    # Ensure correct ownership
-    chown -R "$(whoami):$(id -gn)" "${TARGET_DIR}"
+    # Change ownership back to the current user
+    print_info "Changing ownership of SSH files to current user..."
+    sudo chown -R "$(whoami):$(id -gn)" "${TARGET_DIR}"
 
     print_success "SSH key permissions set correctly"
 
     # Verify SSH key functionality
-    print_info "Verifying SSH keys..."
-    for key in "${TARGET_DIR}"/id_*; do
-      [[ -f "$key" && ! "$key" =~ \.pub$ ]] || continue
-      if ssh-keygen -y -f "$key" >/dev/null 2>&1; then
-        print_success "$(basename "$key") is valid"
-      else
-        print_error "$(basename "$key") appears invalid (may require passphrase)"
-      fi
-    done
+    if command_exists ssh-keygen; then
+      print_info "Verifying SSH key functionality..."
+      for key in "${TARGET_DIR}"/id_*; do
+        if [[ -f "$key" && ! "$key" =~ \.pub$ ]]; then
+          if ssh-keygen -y -f "$key" >/dev/null 2>&1; then
+            print_success "SSH key $(basename "$key") is valid"
+          else
+            print_error "SSH key $(basename "$key") appears to be invalid"
+          fi
+        fi
+      done
+    fi
   else
     print_error "Failed to copy SSH keys"
   fi
 else
-  print_error "No files found under ${SOURCE_DIR}; skipping copy."
+  print_error "No files found under ${MOUNT_POINT}; skipping copy."
 fi
 
-# 6) Unmount the share
-print_info "Unmounting ${MOUNT_POINT}..."
-if umount "${MOUNT_POINT}" 2>/dev/null; then
-  sudo rmdir "${MOUNT_POINT}" &>/dev/null || true
-  MOUNT_POINT=""  # prevent cleanup trap from retrying
+# ─────────────────────────────────────────────────────────────────────────────
+# 7) Unmount the share
+# ─────────────────────────────────────────────────────────────────────────────
+print_info "Unmounting ${MOUNT_POINT}…"
+if sudo diskutil unmount "${MOUNT_POINT}"; then
   print_success "Unmounted share"
 else
-  print_error "Failed to unmount share (will be cleaned up on exit)"
+  print_error "diskutil unmount failed; trying umount -f…"
+  if sudo umount -f "${MOUNT_POINT}"; then
+    print_success "Force unmounted share"
+  else
+    print_error "Failed to unmount share"
+  fi
 fi
 
-print_success "SSH keys setup completed"
+# ─────────────────────────────────────────────────────────────────────────────
+# 8) Clean up sensitive data
+# ─────────────────────────────────────────────────────────────────────────────
+unset SMB_PASS
+print_success "SSH keys setup completed successfully"
