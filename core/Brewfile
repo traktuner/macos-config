@@ -37,7 +37,9 @@ cask 'citrix-workspace'
 cask 'microsoft-teams'
 
 # AI
+cask 'opencode-desktop'
 cask 'claude'
+cask 'chatgpt'
 
 # Productivity
 cask 'keepingyouawake'
