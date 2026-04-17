@@ -3,29 +3,54 @@ set -euo pipefail
 
 # Load shared functions
 source "$ROOT_DIR/core/functions.sh"
-print_info "SSH Keyfiles – mounting SMB share via Finder and copying keys"
+print_info "SSH Keyfiles – mounting SMB share via Keychain and copying keys"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
-SMB_PATH="172.16.10.200/tom/tresor/ssh"
+SMB_SERVER="172.16.10.200"
+SMB_USER_PATH="tom/tresor/ssh"
 MOUNT_POINT="/Volumes/ssh"
 TARGET_DIR="$HOME/.ssh"
 TIMEOUT=30
 SSH_PERMS=600
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1) Prompt for credentials
+# 1) Get credentials from Keychain or prompt
 # ─────────────────────────────────────────────────────────────────────────────
-read -p "Please enter your SMB username: " SMB_USER
-read -s -p "Please enter your SMB password: " SMB_PASS
-echo
+get_smb_credentials() {
+  # Try to read from Keychain (stored with server as service name)
+  if SMB_PASS=$(security find-internet-password -s "$SMB_SERVER" -w 2>/dev/null); then
+    print_info "Credentials found in Keychain for $SMB_SERVER"
+    SMB_USER=$(security find-internet-password -s "$SMB_SERVER" 2>/dev/null \
+      | grep '"acct"<blob>="' \
+      | sed 's/.*"acct"<blob>="//;s/".*//')
+    return 0
+  fi
+  
+  # Fallback: prompt for credentials
+  print_info "No credentials in Keychain for $SMB_SERVER. Please enter them once (will be saved)."
+  read -p "Please enter your SMB username: " SMB_USER
+  read -s -p "Please enter your SMB password: " SMB_PASS
+  echo
+  
+  if [[ -z "$SMB_USER" || -z "$SMB_PASS" ]]; then
+    print_error "Username and password cannot be empty"
+    return 1
+  fi
+  
+  # Save to Keychain so Finder can auto-authenticate next time
+  print_info "Saving credentials to Keychain..."
+  if security add-internet-password -s "$SMB_SERVER" -a "$SMB_USER" -w "$SMB_PASS" -r smb 2>/dev/null; then
+    print_success "Credentials saved to Keychain (Finder will auto-authenticate)"
+  else
+    print_error "Failed to save credentials to Keychain"
+  fi
+  
+  return 0
+}
 
-# Validate input
-if [[ -z "$SMB_USER" || -z "$SMB_PASS" ]]; then
-  print_error "Username and password cannot be empty"
-  exit 1
-fi
+get_smb_credentials || exit 1
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) Ensure target dir exists with proper permissions
@@ -45,10 +70,10 @@ if mount | grep -q "on ${MOUNT_POINT} "; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4) Trigger Finder mount (opens GUI prompt)
+# 4) Mount SMB share – Finder reads credentials from Keychain automatically
 # ─────────────────────────────────────────────────────────────────────────────
-print_info "Opening Finder to mount smb://…"
-open "smb://${SMB_USER}:${SMB_PASS}@${SMB_PATH}" || true
+print_info "Mounting SMB share (Finder will use Keychain credentials)…"
+open "smb://${SMB_SERVER}/${SMB_USER_PATH}" || true
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) Wait up to $TIMEOUT seconds for the mount-point to appear
