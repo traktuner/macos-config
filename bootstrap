@@ -24,6 +24,9 @@ export -f retry safe_defaults_write safe_plistbuddy safe_killall
 export -f ensure_directory download_file bootstrap_launch_daemon tm_snapshot
 export -f check_full_disk_access request_full_disk_access check_macos_version
 
+# Global variables for error tracking
+declare -a FAILED_SCRIPTS=()
+
 # System validation
 print_info "Validating system requirements..."
 if ! check_macos_version "14.0"; then
@@ -93,10 +96,48 @@ check_fda_for_scripts() {
   done
 }
 
+# Function to list available Time Machine snapshots
+list_snapshots() {
+  print_info "Available Time Machine snapshots:"
+  tmutil listlocalsnapshots / | while read -r line; do
+    echo "  $line"
+  done
+}
+
+# Function to offer rollback
+offer_rollback() {
+  local failed_count=$1
+  if ((failed_count > 0)); then
+    print_error "$failed_count script(s) failed. Check the log for details."
+    
+    # Check for available snapshots
+    local snapshots
+    snapshots=$(tmutil listlocalsnapshots / 2>/dev/null)
+    
+    if [[ -n "$snapshots" ]]; then
+      print_info "Time Machine snapshots are available for rollback."
+      list_snapshots
+      
+      ask_for_confirmation "Would you like to restore from the latest snapshot?"
+      if answer_is_yes; then
+        print_info "Latest snapshot: $(echo "$snapshots" | tail -1)"
+        print_info "To restore manually, run:"
+        print_info "  tmutil restore -s \"$(echo "$snapshots" | tail -1 | sed 's/Snapshot: //')\" /"
+        print_info "Note: This requires reboot and cannot be done from this script."
+      else
+        print_info "Rollback skipped. You can restore manually later if needed."
+      fi
+    else
+      print_info "No Time Machine snapshots found for rollback."
+    fi
+  fi
+}
+
 # Function to execute scripts with error tracking
 run_scripts() {
   local scripts=("$@")
   local failed=0
+  
   for script in "${scripts[@]}"; do
     print_info "Running $(basename "$script")..."
     if bash "$script"; then
@@ -104,11 +145,11 @@ run_scripts() {
     else
       print_error "Failed: $(basename "$script")"
       ((failed++))
+      FAILED_SCRIPTS+=("$(basename "$script")")
     fi
   done
-  if ((failed > 0)); then
-    print_error "$failed script(s) had errors. Check the log for details."
-  fi
+  
+  offer_rollback $failed
 }
 
 # Handle choice
@@ -194,3 +235,8 @@ done
 
 print_success "Done! You can now close this terminal."
 print_info "Log file available at: $LOG_FILE"
+
+# Show summary of any failed scripts
+if [[ ${#FAILED_SCRIPTS[@]} -gt 0 ]]; then
+  print_error "Failed scripts: ${FAILED_SCRIPTS[*]}"
+fi

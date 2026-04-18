@@ -3,17 +3,29 @@ set -euo pipefail
 
 # Load shared functions
 source "$ROOT_DIR/core/functions.sh"
+
+# Load configuration
+CONFIG_FILE="$ROOT_DIR/utils/config.properties"
+if [[ -f "$CONFIG_FILE" ]]; then
+  source "$CONFIG_FILE"
+  print_info "Configuration loaded from config.properties"
+else
+  print_error "Configuration file not found: $CONFIG_FILE"
+  exit 1
+fi
+
 print_info "SSH Keyfiles – mounting SMB share via Keychain and copying keys"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Configuration
-# ─────────────────────────────────────────────────────────────────────────────
-SMB_SERVER="172.16.10.200"
-SMB_USER_PATH="tom/tresor/ssh"
-MOUNT_POINT="/Volumes/ssh"
+# Configuration (can be overridden by deploy.properties)
+SMB_SERVER="${SMB_SERVER:-172.16.10.200}"
+SMB_USER_PATH="${SMB_USER_PATH:-tom/tresor/ssh}"
+MOUNT_POINT="${SMB_MOUNT_POINT:-/Volumes/ssh}"
 TARGET_DIR="$HOME/.ssh"
 TIMEOUT=30
 SSH_PERMS=600
+
+# Track state for cleanup
+MOUNTED=false
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) Get credentials from Keychain or prompt
@@ -53,6 +65,35 @@ get_smb_credentials() {
 get_smb_credentials || exit 1
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Cleanup Trap - ensures resources are released on exit
+# ─────────────────────────────────────────────────────────────────────────────
+cleanup() {
+  local exit_code=$?
+  print_info "Running cleanup..."
+  
+  # Unmount SMB share if it was mounted
+  if [[ "$MOUNTED" == "true" ]]; then
+    print_info "Unmounting ${MOUNT_POINT}…"
+    sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null || \
+      sudo umount -f "${MOUNT_POINT}" &>/dev/null || true
+  fi
+  
+  # Clear sensitive variables
+  unset SMB_PASS
+  unset SMB_USER
+  
+  if [[ $exit_code -eq 0 ]]; then
+    print_success "Cleanup completed successfully"
+  else
+    print_error "Cleanup completed with exit code: $exit_code"
+  fi
+  
+  exit $exit_code
+}
+
+trap cleanup EXIT INT TERM HUP
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 2) Ensure target dir exists with proper permissions
 # ─────────────────────────────────────────────────────────────────────────────
 ensure_directory "${TARGET_DIR}" false
@@ -87,9 +128,9 @@ done
 
 if [[ ! -d "${MOUNT_POINT}" ]]; then
   print_error "Mount did not appear within ${TIMEOUT}s. Aborting."
-  unset SMB_PASS
   exit 1
 fi
+MOUNTED=true
 print_success "SMB share mounted at ${MOUNT_POINT}"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -143,22 +184,6 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7) Unmount the share
+# 7) Cleanup handled by trap
 # ─────────────────────────────────────────────────────────────────────────────
-print_info "Unmounting ${MOUNT_POINT}…"
-if sudo diskutil unmount "${MOUNT_POINT}"; then
-  print_success "Unmounted share"
-else
-  print_error "diskutil unmount failed; trying umount -f…"
-  if sudo umount -f "${MOUNT_POINT}"; then
-    print_success "Force unmounted share"
-  else
-    print_error "Failed to unmount share"
-  fi
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 8) Clean up sensitive data
-# ─────────────────────────────────────────────────────────────────────────────
-unset SMB_PASS
 print_success "SSH keys setup completed successfully"

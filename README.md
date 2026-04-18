@@ -43,7 +43,8 @@ macos-config/
 │   ├── 04-ssh-keys.sh        # SSH keys from SMB share
 │   ├── 05-config-profile.sh  # Install configuration profile from iCloud
 │   ├── 06-macos-update.sh    # macOS software updates
-│   └── deploy.properties     # CrashPlan deployment config
+│   ├── config.properties     # General configuration (SMB, wallpaper, etc.)
+│   └── deploy.properties     # CrashPlan deployment config (copied to CrashPlan)
 └── renovate.json             # Automated dependency updates
 ```
 
@@ -61,16 +62,30 @@ Edit `core/Brewfile` to add/remove apps. Custom casks are in the `traktuner/trak
 ### macOS settings
 Modify `utils/03-macos.sh` for personal preferences. Settings are organized by category (UI/UX, Finder, Dock, Safari, etc.).
 
-### SSH Keys
-Configure the SMB server/share in `utils/04-ssh-keys.sh`.
+### SSH Keys & General Configuration
+Edit `utils/config.properties` to customize:
+```properties
+# SMB server for SSH key deployment
+SMB_SERVER="172.16.10.200"
+SMB_USER_PATH="tom/tresor/ssh"
+SMB_MOUNT_POINT="/Volumes/ssh"
+
+# Wallpaper path
+WALLPAPER_PATH="$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.jpeg"
+
+# Time Machine preferences
+TM_ENABLED=true
+TM_AUTO_BACKUP=true
+```
 
 ## Security
 
 - Time Machine snapshot before making changes
-- SMB credentials cleaned up via trap on exit
+- **Trap-based cleanup**: Automatic unmounting of SMB shares and credential clearing on script exit/interrupt
 - SSH key permissions automatically set (600/644)
 - No passwords exposed in process list
 - Full Disk Access verified before modifying protected settings
+- **Rollback support**: Automatic offer to restore from Time Machine snapshot if scripts fail
 
 ## Logs
 
@@ -83,7 +98,21 @@ Dependency updates are automated via Renovate (weekly, Monday mornings).
 ```bash
 # Manual Homebrew maintenance
 brew update && brew upgrade && brew cleanup
+
+# List Time Machine snapshots
+tmutil listlocalsnapshots /
+
+# Restore from snapshot (requires reboot)
+# tmutil restore -s "Snapshot-name" /
 ```
+
+## Configuration Files
+
+### config.properties (General Settings)
+Used by `03-macos.sh` and `04-ssh-keys.sh` for customizable settings like SMB server, wallpaper, and Time Machine preferences.
+
+### deploy.properties (CrashPlan Only)
+CrashPlan-specific deployment configuration. This file is copied directly to `/Library/Application Support/CrashPlan/` during setup.
 
 ## Notes on macOS Tahoe (26)
 

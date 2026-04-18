@@ -2,6 +2,16 @@
 set -euo pipefail
 
 source "$ROOT_DIR/core/functions.sh"
+
+# Load configuration
+CONFIG_FILE="$ROOT_DIR/utils/config.properties"
+if [[ -f "$CONFIG_FILE" ]]; then
+  source "$CONFIG_FILE"
+  print_info "Configuration loaded from config.properties"
+else
+  print_info "config.properties not found - using defaults"
+fi
+
 print_info "macOS system configuration"
 
 ###############################################################################
@@ -370,7 +380,7 @@ rm -f "$SPOTLIGHT_PLIST"
 # Wallpaper
 ###############################################################################
 print_info "Setting default wallpaper..."
-WALLPAPER_PATH="$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.jpeg"
+WALLPAPER_PATH="${WALLPAPER_PATH:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.jpeg}"
 if [[ -f "$WALLPAPER_PATH" ]]; then
   osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$WALLPAPER_PATH\"" \
     && print_success "Wallpaper set" \
