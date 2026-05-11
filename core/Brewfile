@@ -25,7 +25,7 @@ cask 'little-snitch'
 cask 'microsoft-defender'
 
 # Proton Suite
-# cask 'proton-drive'
+cask 'proton-drive'
 cask 'proton-mail'
 cask 'proton-pass'
 cask 'protonvpn'
@@ -43,7 +43,7 @@ cask 'chatgpt'
 
 # Productivity
 cask 'keepingyouawake'
-cask 'opencloud'
+#cask 'opencloud'
 cask 'visual-studio-code'
 cask 'network-share-mounter'
 cask 'imazing-profile-editor'
