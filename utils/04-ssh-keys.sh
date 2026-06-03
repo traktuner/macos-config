@@ -34,16 +34,21 @@ get_smb_credentials() {
   # Try to read from Keychain (stored with server as service name)
   if SMB_PASS=$(security find-internet-password -s "$SMB_SERVER" -w 2>/dev/null); then
     print_info "Credentials found in Keychain for $SMB_SERVER"
+    # Extract the account/username from the "acct"<blob>="..." attribute line.
+    # Splitting on the quote character is more robust than a sed regex chain.
     SMB_USER=$(security find-internet-password -s "$SMB_SERVER" 2>/dev/null \
-      | grep '"acct"<blob>="' \
-      | sed 's/.*"acct"<blob>="//;s/".*//')
+      | awk -F'"' '/"acct"<blob>=/{print $(NF-1)}')
+    if [[ -z "$SMB_USER" ]]; then
+      print_error "Found a Keychain password for $SMB_SERVER but could not read the username."
+      return 1
+    fi
     return 0
   fi
-  
+
   # Fallback: prompt for credentials
   print_info "No credentials in Keychain for $SMB_SERVER. Please enter them once (will be saved)."
-  read -p "Please enter your SMB username: " SMB_USER
-  read -s -p "Please enter your SMB password: " SMB_PASS
+  read -r -p "Please enter your SMB username: " SMB_USER
+  read -r -s -p "Please enter your SMB password: " SMB_PASS
   echo
   
   if [[ -z "$SMB_USER" || -z "$SMB_PASS" ]]; then
@@ -128,6 +133,10 @@ done
 
 if [[ ! -d "${MOUNT_POINT}" ]]; then
   print_error "Mount did not appear within ${TIMEOUT}s. Aborting."
+  print_info "Check that:"
+  print_info "  • the server ${SMB_SERVER} is reachable (e.g. 'ping ${SMB_SERVER}')"
+  print_info "  • the share path '${SMB_USER_PATH}' is correct"
+  print_info "  • the Keychain credentials for ${SMB_SERVER} are valid"
   exit 1
 fi
 MOUNTED=true

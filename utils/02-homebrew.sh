@@ -3,7 +3,7 @@ set -euo pipefail
 
 source "$ROOT_DIR/core/functions.sh"
 print_info "Setting up Homebrew"
-ask_for_sudo
+# Note: bootstrap already primed sudo and started the keep-alive loop.
 
 # Install Casks in /Applications
 export HOMEBREW_CASK_OPTS="--appdir=/Applications"

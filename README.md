@@ -36,15 +36,19 @@ macos-config/
 │   ├── Brewfile              # Homebrew packages, casks, and MAS apps
 │   └── functions.sh          # Shared utility functions
 ├── utils/
-│   ├── 00-preflight.sh       # Time Machine snapshot, CrashPlan, toggleAirport
-│   ├── 01-install-rosetta2.sh  # Rosetta 2 for Apple Silicon
-│   ├── 02-homebrew.sh        # Homebrew installation & packages
-│   ├── 03-macos.sh           # macOS system preferences (defaults write)
-│   ├── 04-ssh-keys.sh        # SSH keys from SMB share
-│   ├── 05-config-profile.sh  # Install configuration profile from iCloud
-│   ├── 06-macos-update.sh    # macOS software updates
-│   ├── config.properties     # General configuration (SMB, wallpaper, etc.)
-│   └── deploy.properties     # CrashPlan deployment config (copied to CrashPlan)
+│   ├── 00-preflight.sh          # Time Machine snapshot, CrashPlan, toggleAirport
+│   ├── 01-install-rosetta2.sh   # Rosetta 2 for Apple Silicon
+│   ├── 02-homebrew.sh           # Homebrew installation & packages
+│   ├── 03-macos.sh              # macOS system preferences (defaults write)
+│   ├── 04-ssh-keys.sh           # SSH keys from SMB share
+│   ├── 05-config-profile.sh     # Install configuration profile from iCloud
+│   ├── 07-manual-apps.sh        # Apps not available via Homebrew (.pkg/.dmg)
+│   ├── 08-default-apps.sh       # Default mail app & browser
+│   ├── 09-dock-layout.sh        # Dock layout via dockutil
+│   ├── 10-shell-config.sh       # zsh + starship configuration
+│   ├── 11-firefox-extensions.sh # Firefox policies.json (extensions & prefs)
+│   ├── config.properties        # General configuration (SMB, wallpaper, etc.)
+│   └── deploy.properties        # CrashPlan deployment config (copied to CrashPlan)
 └── renovate.json             # Automated dependency updates
 ```
 
