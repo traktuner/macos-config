@@ -61,7 +61,7 @@ macos-config/
 ## Configuration
 
 ### Homebrew packages
-Edit `core/Brewfile` to add/remove apps. Custom casks are in the `traktuner/traktuner` tap.
+Edit `core/Brewfile` to add/remove apps. Custom casks are in the `traktuner/tap` tap.
 
 ### macOS settings
 Modify `utils/03-macos.sh` for personal preferences. Settings are organized by category (UI/UX, Finder, Dock, Safari, etc.).

@@ -59,6 +59,22 @@ for t in $(brew bundle list --file="$ROOT_DIR/core/Brewfile" --tap 2>/dev/null);
   brew tap "$t" 2>/dev/null || print_error "Failed to tap $t"
 done
 
+# 4b) Trust our own tap.
+#     From Homebrew 6.0 / 5.2 (whichever comes first) HOMEBREW_REQUIRE_TAP_TRUST
+#     becomes the default; untrusted taps' formulae/casks are then ignored.
+#     `brew trust` is a recent command — skip gracefully on older Homebrew.
+OWN_TAP="traktuner/tap"
+if brew trust --help >/dev/null 2>&1; then
+  print_info "Trusting tap: $OWN_TAP"
+  if brew trust --tap "$OWN_TAP" >/dev/null 2>&1; then
+    print_success "Trusted tap: $OWN_TAP"
+  else
+    print_error "Failed to trust tap: $OWN_TAP"
+  fi
+else
+  print_info "'brew trust' not available in this Homebrew version — skipping tap trust"
+fi
+
 # 5) Check Mac App Store sign-in and decide whether to install MAS apps
 INSTALL_MAS_APPS=false
 if command_exists mas; then
