@@ -19,16 +19,18 @@ brew 'ansible'
 
 # Browsers
 cask 'firefox'
-cask 'ungoogled-chromium'
+#cask 'ungoogled-chromium'
 
 # Privacy & Security
 cask 'cryptomator'
 cask 'little-snitch'
 cask 'microsoft-defender'
+cask 'tailscale-app'
 
 # Proton Suite
 cask 'proton-drive'
 cask 'proton-mail'
+cask 'proton-mail-bridge'
 cask 'proton-pass'
 cask 'protonvpn'
 cask 'standard-notes'
@@ -36,31 +38,39 @@ cask 'standard-notes'
 # Communication & Collaboration
 cask 'beeper'
 cask 'citrix-workspace'
+cask 'cisco-jabber'
 cask 'microsoft-teams'
 
 # AI
 cask 'opencode-desktop'
 cask 'claude'
 cask 'chatgpt'
+cask 'codex'
+cask 't3-code'
 
 # Productivity
 cask 'keepingyouawake'
-#cask 'opencloud'
+cask 'opencloud'
 cask 'visual-studio-code'
 cask 'network-share-mounter'
 cask 'imazing-profile-editor'
 cask 'libreoffice'
 cask 'betterdisplay'
+cask 'royal-tsx'
+cask 'jdownloader2-safari'
 
 # Media & Creativity
 cask 'affinity'
 cask 'vlc'
 cask 'jellyfin-media-player'
+cask 'refx-cloud'
 
 # Backup & Maintenance
 cask 'appcleaner'
 cask 'keka'
 cask 'crashplan'
+cask 'grandperspective'
+cask 'urbackup-client'
 
 # Emulation & Gaming
 cask 'utm'
@@ -74,3 +84,9 @@ mas 'CEWE Fotoservice', id: 1446275768
 mas 'HP', id: 1474276998
 mas 'Speedtest', id: 1153157709
 mas 'Apple Configurator', id: 1037126344
+mas '1Blocker', id: 1365531024
+mas 'Proton Pass for Safari', id: 6502835663
+mas 'Noir', id: 1592917505
+mas 'Final Cut Pro', id: 424389933
+mas 'Xcode', id: 497799835
+mas 'ComputerMouseJiggler', id: 6499493055
