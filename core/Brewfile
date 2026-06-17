@@ -1,8 +1,10 @@
 # Sources
 tap 'traktuner/tap'
+tap 'protonpass/tap'
 
 # Utilities
 brew 'mas'
+brew 'pass-cli'
 brew 'git'
 brew 'tailscale'
 brew 'defaultbrowser'
