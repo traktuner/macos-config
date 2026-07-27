@@ -27,9 +27,12 @@ fi
 #            bash utils/12-ai-config.sh save
 #
 # Expected layout on the share (SMB_AI_PATH):
-#   <share>/claude/     -> ~/.claude/              (CLAUDE.md, settings.json, skills, agents, commands)
+#   <share>/claude/     -> ~/.claude/              (CLAUDE.md, settings.json, agents, commands)
+#   <share>/claude-desktop/ -> ~/Library/Application Support/Claude/
 #   <share>/codex/      -> ~/.codex/               (config.toml, AGENTS.md, hooks.json, rules, auth.json)
-#   <share>/opencode/   -> ~/.config/opencode/     (opencode.jsonc, AGENTS.md, package.json)
+#   <share>/opencode/   -> ~/.config/opencode/     (policy, agents, skills, plugins, tests, tools/watchers)
+#                                                  plugins include the local Lumo usage estimator
+#                                                  that restores proactive compaction when Lumo omits usage
 # Only the curated items below are synced; runtime state/caches/history are ignored.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -47,12 +50,16 @@ TIMEOUT=30
 
 # Curated items per tool (files and directories). Secrets (auth.json, the real
 # opencode.jsonc with its apiKey) live only on the trusted share, never in git.
-CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(CLAUDE.md settings.json skills agents commands)
+# NOTE: `skills` removed 2026-07 — the installed ~/.claude/skills were retired; syncing them would
+# resurrect dead routing. Per-project memory (~/.claude/projects/*/memory) is version-controlled in
+# its own git repo, not synced here (the copy_item rm -rf + flat-item model can't carry a nested path).
+CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(CLAUDE.md settings.json agents commands)
+CLAUDE_DESKTOP_TARGET="$HOME/Library/Application Support/Claude"; CLAUDE_DESKTOP_ITEMS=(claude_desktop_config.json)
 CODEX_TARGET="$HOME/.codex";             CODEX_ITEMS=(config.toml AGENTS.md hooks.json rules auth.json)
-OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc AGENTS.md package.json rules agents commands skills tools plugins)
+OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc AGENTS.md package.json package-lock.json doctor.sh rules agents commands skills tools plugins tests)
 
 # Files that must be private (chmod 600 after a pull)
-SENSITIVE_BASENAMES="auth.json opencode.jsonc settings.json"
+SENSITIVE_BASENAMES="auth.json opencode.jsonc settings.json config.toml claude_desktop_config.json"
 
 MOUNTED=false
 
@@ -212,6 +219,7 @@ print_success "SMB share mounted at ${MOUNT_POINT}"
 # ─────────────────────────────────────────────────────────────────────────────
 print_info "AI config sync — mode: ${MODE}"
 sync_tool "claude"   "$CLAUDE_TARGET"   "${CLAUDE_ITEMS[@]}"
+sync_tool "claude-desktop" "$CLAUDE_DESKTOP_TARGET" "${CLAUDE_DESKTOP_ITEMS[@]}"
 sync_tool "codex"    "$CODEX_TARGET"    "${CODEX_ITEMS[@]}"
 sync_tool "opencode" "$OPENCODE_TARGET" "${OPENCODE_ITEMS[@]}"
 
