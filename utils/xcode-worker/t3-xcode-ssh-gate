@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+config_file="${T3_XCODE_GATE_CONFIG:-$HOME/.config/t3-xcode-worker/ssh-gate.conf}"
+[[ -r "$config_file" ]] || { echo "Xcode SSH gate is not configured." >&2; exit 1; }
+{
+  IFS= read -r allowed_root
+  IFS= read -r derived_data_root
+  IFS= read -r enabled_workflows
+} < "$config_file"
+[[ -n "$allowed_root" && -d "$allowed_root" ]] || { echo "Configured Xcode workspace root is unavailable." >&2; exit 1; }
+allowed_root="$(cd "$allowed_root" && pwd -P)"
+if [[ "${SSH_ORIGINAL_COMMAND:-}" == "t3-xcode-check" ]]; then
+  test -x "$HOME/.local/bin/t3-xcode-worker"
+  exit
+fi
+if [[ ! "${SSH_ORIGINAL_COMMAND:-}" =~ ^t3-xcode[[:space:]]([A-Za-z0-9_-]+)$ ]]; then
+  echo "This SSH key is restricted to the T3 Xcode worker." >&2
+  exit 2
+fi
+encoded_relative="${BASH_REMATCH[1]}"
+padding=$(( (4 - ${#encoded_relative} % 4) % 4 ))
+encoded_relative="${encoded_relative//-/+}"
+encoded_relative="${encoded_relative//_/\/}"
+while (( padding > 0 )); do encoded_relative+="="; padding=$((padding - 1)); done
+relative="$(printf '%s' "$encoded_relative" | /usr/bin/base64 -D)"
+if [[ -z "$relative" || "$relative" == /* || "$relative" == *$'\n'* || "$relative" == *$'\r'* ]]; then
+  echo "Invalid Xcode project path." >&2
+  exit 2
+fi
+IFS='/' read -r -a components <<< "$relative"
+for component in "${components[@]}"; do
+  [[ -n "$component" && "$component" != "." && "$component" != ".." ]] || { echo "Invalid Xcode project path component." >&2; exit 2; }
+done
+candidate="$allowed_root/$relative"
+[[ -d "$candidate" ]] || { echo "Xcode project directory does not exist." >&2; exit 2; }
+candidate="$(cd "$candidate" && pwd -P)"
+case "$candidate/" in "$allowed_root"/*) ;; *) echo "Xcode project path escapes the configured workspace root." >&2; exit 2 ;; esac
+args=(--cwd "$candidate")
+[[ -z "$derived_data_root" ]] || args+=(--derived-data-root "$derived_data_root")
+[[ -z "$enabled_workflows" ]] || args+=(--enabled-workflows "$enabled_workflows")
+exec "$HOME/.local/bin/t3-xcode-worker" "${args[@]}"
