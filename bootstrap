@@ -58,6 +58,8 @@ print_info "Welcome to your macOS setup bootstrap!"
 UTILS=()
 for f in "$ROOT_DIR/utils"/*.sh; do
   [[ -f "$f" ]] || continue
+  # The reinstall backup is a separate opt-in action, never part of full setup.
+  [[ "$(basename "$f")" == "06-backup-before-reinstall.sh" ]] && continue
   UTILS+=("$f")
 done
 

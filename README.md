@@ -42,6 +42,7 @@ macos-config/
 │   ├── 03-macos.sh              # macOS system preferences (defaults write)
 │   ├── 04-ssh-keys.sh           # SSH keys from SMB share
 │   ├── 05-config-profile.sh     # Install configuration profile from iCloud
+│   ├── 06-backup-before-reinstall.sh # Backup and restore local Mac state
 │   ├── 07-manual-apps.sh        # Apps not available via Homebrew (.pkg/.dmg)
 │   ├── 08-default-apps.sh       # Default mail app & browser
 │   ├── 09-dock-layout.sh        # Dock layout via dockutil
@@ -73,8 +74,8 @@ Modify `utils/03-macos.sh` for personal preferences. Settings are organized by c
 Edit `utils/config.properties` to customize:
 ```properties
 # SMB server for SSH key deployment
-SMB_SERVER="172.16.10.200"
-SMB_USER_PATH="tom/tresor/ssh"
+SMB_SERVER="<your-smb-server>"
+SMB_USER_PATH="<private-share>/ssh"
 SMB_MOUNT_POINT="/Volumes/ssh"
 
 # Wallpaper path

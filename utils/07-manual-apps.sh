@@ -94,10 +94,7 @@ install_dmg() {
 }
 
 ###############################################################################
-# UrBackup Client (.pkg)
+# No current manual apps
 ###############################################################################
-ask_for_confirmation "Install UrBackup Client?"
-if answer_is_yes; then
-  install_pkg "UrBackup Client" "https://hndl.urbackup.org/Client/2.5.29/UrBackup%20Client%202.5.29.pkg"
-fi
-
+# UrBackup is installed by the `urbackup-client` cask in core/Brewfile.
+print_info "No manual apps configured; UrBackup is installed through Homebrew."
