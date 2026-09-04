@@ -62,6 +62,7 @@ cask 'jdownloader2-safari'
 
 # Media & Creativity
 cask 'affinity'
+cask 'audacity'
 cask 'vlc'
 cask 'jellyfin-media-player'
 cask 'refx-cloud'
