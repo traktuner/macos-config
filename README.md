@@ -51,6 +51,7 @@ macos-config/
 │   ├── 12-ai-config.sh          # Restore/save private AI harness configuration
 │   ├── 13-onyx-mcp.sh           # Configure authenticated Onyx MCP locally
 │   ├── 14-xcode-worker.sh       # T3-reachable, restricted XcodeBuildMCP worker
+│   ├── 15-agent-rack.sh         # Pinned stock agent-rack MCP for local AI harnesses
 │   ├── config.properties        # General configuration (SMB, wallpaper, etc.)
 │   └── deploy.properties        # CrashPlan deployment config (copied to CrashPlan)
 └── renovate.json             # Automated dependency updates
@@ -109,6 +110,22 @@ docker exec -it t3code t3-xcode-auth <mac-user>@<mac-host>
 
 Do not store the Mac workspace path, T3 host, SSH private key, or credentials in
 this repository.
+
+### agent-rack MCP
+
+`utils/15-agent-rack.sh` installs the pinned stock
+[`agent-rack`](https://github.com/lakpriya1s/agent-rack) npm package (an MCP
+server that drives claude, codex, and opencode CLI agents as MCP tools) and
+registers it with every installed local harness through agent-rack's own
+official idempotent `install` and `cp` commands — never by hand-editing client
+configs in this repo. The version is pinned in `utils/config.properties`
+(`AGENT_RACK_VERSION`); update it deliberately, do not float to `latest`.
+
+The script is safe to re-run. It also raises the stock
+`security.defaultTimeoutSeconds` from 600 to 43200 (12h) because autonomous
+sessions here run for many hours, and sets `security.maxConcurrentSessions`.
+No LaunchAgent or daemon is created: agent-rack runs over stdio and is
+started by each MCP client on demand.
 
 ## Security
 

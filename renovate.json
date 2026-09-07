@@ -40,6 +40,16 @@
   "commitMessageAction": "update",
   "commitMessageTopic": "{{depName}}",
   "commitMessageExtra": "to {{newVersion}}",
+  "regexManagers": [
+    {
+      "fileMatch": ["^utils/config\\.properties$"],
+      "matchStrings": [
+        "AGENT_RACK_VERSION=\"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "agent-rack",
+      "datasourceTemplate": "npm"
+    }
+  ],
   "labels": [
     "dependencies",
     "automated"

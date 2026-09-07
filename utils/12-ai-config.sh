@@ -33,6 +33,12 @@ fi
 #   <share>/opencode/   -> ~/.config/opencode/     (policy, agents, skills, plugins, tests, tools/watchers)
 #                                                  plugins include the local Lumo usage estimator
 #                                                  that restores proactive compaction when Lumo omits usage
+#   <share>/agent-rack/ -> ~/.config/agent-rack/   (canonical 27-agent config
+#                                                  plus the shared policy set
+#                                                  from the infra repository;
+#                                                  runtime/ holds SSE auth
+#                                                  tokens and is deliberately
+#                                                  NOT synced)
 # Only the curated items below are synced; runtime state/caches/history are ignored.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -57,9 +63,15 @@ CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(CLAUDE.md settings.json a
 CLAUDE_DESKTOP_TARGET="$HOME/Library/Application Support/Claude"; CLAUDE_DESKTOP_ITEMS=(claude_desktop_config.json)
 CODEX_TARGET="$HOME/.codex";             CODEX_ITEMS=(config.toml AGENTS.md hooks.json rules auth.json)
 OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc AGENTS.md package.json package-lock.json doctor.sh rules agents commands skills tools plugins tests)
+# agent-rack: the canonical 27-agent config plus the shared policy set from
+# the infra repository (agent-rack-policies). 15-agent-rack.sh redeploys these
+# from the live infra checkout on the new machine; the share copy is the
+# fallback when no infra checkout exists yet. runtime/ holds per-machine SSE
+# auth tokens and session state and must not be restored.
+AGENT_RACK_TARGET="$HOME/.config/agent-rack"; AGENT_RACK_ITEMS=(config.json agent-rack.profiles.json agent-rack.security-overlay.json DELEGATION.md WORKER-CONTRACT.txt MODEL-CATALOG.json RESEARCH.md SOURCES.md ROOT-BLOCK.md)
 
 # Files that must be private (chmod 600 after a pull)
-SENSITIVE_BASENAMES="auth.json opencode.jsonc settings.json config.toml claude_desktop_config.json"
+SENSITIVE_BASENAMES="auth.json opencode.jsonc settings.json config.toml claude_desktop_config.json config.json"
 
 MOUNTED=false
 
@@ -179,7 +191,7 @@ sync_tool() {
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ "$MODE" == "save" ]]; then
   print_info "SAVE mode: your local AI configs will be uploaded to ${SMB_SERVER}/${SMB_AI_PATH}"
-  ask_for_confirmation "Upload current local Claude/Codex/OpenCode configs to the share?"
+  ask_for_confirmation "Upload current local Claude/Codex/OpenCode/agent-rack configs to the share?"
   answer_is_yes || { print_info "Aborted."; exit 0; }
 fi
 
@@ -222,6 +234,7 @@ sync_tool "claude"   "$CLAUDE_TARGET"   "${CLAUDE_ITEMS[@]}"
 sync_tool "claude-desktop" "$CLAUDE_DESKTOP_TARGET" "${CLAUDE_DESKTOP_ITEMS[@]}"
 sync_tool "codex"    "$CODEX_TARGET"    "${CODEX_ITEMS[@]}"
 sync_tool "opencode" "$OPENCODE_TARGET" "${OPENCODE_ITEMS[@]}"
+sync_tool "agent-rack" "$AGENT_RACK_TARGET" "${AGENT_RACK_ITEMS[@]}"
 
 if [[ "$MODE" == "pull" ]]; then
   # OpenCode custom tools/plugins import @opencode-ai/plugin — node_modules is
@@ -237,6 +250,7 @@ if [[ "$MODE" == "pull" ]]; then
   print_success "AI configs pulled from the tresor."
   print_info "If a tool still asks you to log in, run its login once (e.g. 'claude', 'codex login')."
   print_info "OpenCode/Lumo: opencode.jsonc from the share already contains your apiKey."
+  print_info "agent-rack: run utils/15-agent-rack.sh after the pull so version, registrations, and skills are (re)installed."
   print_info "After pull: fully quit + reopen the OpenCode app so it reloads config/tools."
 else
   print_success "AI configs saved to the tresor. Nothing was written to this git repo."
