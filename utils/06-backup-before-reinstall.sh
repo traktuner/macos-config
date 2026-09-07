@@ -4,9 +4,22 @@ set -euo pipefail
 # Fast, repeatable pre-reinstall backup and restore. The destination must be
 # a mounted local path. Restore never deletes files at the destination.
 
-# Keep the repository portable. Set BACKUP_DESTINATION or pass a destination
-# as the second argument when the mounted share uses a different path.
-DESTINATION="${BACKUP_DESTINATION:-$HOME/Netzlaufwerke/restore/2026}"
+# Resolve the repository root. Works standalone and from bootstrap (ROOT_DIR
+# is already exported there).
+ROOT_DIR="${ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
+# Load shared configuration (BACKUP_RESTORE_SUBPATH lives there).
+CONFIG_FILE="$ROOT_DIR/utils/config.properties"
+if [[ -f "$CONFIG_FILE" ]]; then
+  # shellcheck source=utils/config.properties
+  source "$CONFIG_FILE"
+fi
+
+# Keep the repository portable. The sub-path below the mounted share comes
+# from config.properties. Set BACKUP_DESTINATION or pass a destination as the
+# second argument to override the derived path entirely.
+RESTORE_SUBPATH="${BACKUP_RESTORE_SUBPATH:-restore/2026}"
+DESTINATION="${BACKUP_DESTINATION:-$HOME/Netzlaufwerke/$RESTORE_SUBPATH}"
 MODE="${1:-backup}"
 
 if [[ "$MODE" == "backup" && -n "${2:-}" ]]; then
