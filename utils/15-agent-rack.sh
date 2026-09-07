@@ -32,8 +32,10 @@ AGENT_RACK_VERSION="${AGENT_RACK_VERSION:-0.12.1}"
 AGENT_RACK_MAX_CONCURRENT_SESSIONS="${AGENT_RACK_MAX_CONCURRENT_SESSIONS:-6}"
 AGENT_RACK_DEFAULT_TIMEOUT_SECONDS="${AGENT_RACK_DEFAULT_TIMEOUT_SECONDS:-43200}"
 # Workspaces the rack may operate in (stock security.allowedWorkspaces).
-# Colon-separated; default covers the usual repos, extend for additional trees.
-AGENT_RACK_ALLOWED_WORKSPACES="${AGENT_RACK_ALLOWED_WORKSPACES:-$HOME/Developer}"
+# Default: empty = take the canonical list from the policy config unchanged
+# (universal config; it carries /workspace and the Mac SMB mount path).
+# Colon-separated override for environment-specific additions.
+AGENT_RACK_ALLOWED_WORKSPACES="${AGENT_RACK_ALLOWED_WORKSPACES:-}"
 # Canonical policy source (infra checkout). Must contain the 9 policy files
 # deployed identically to the t3code container. 12-ai-config.sh restores a
 # snapshot of the same files to ~/.config/agent-rack/ from the SMB share;
@@ -133,6 +135,9 @@ node - "$CONFIG_JSON" "$AGENT_RACK_POLICY_SOURCE/config.json" \
       "$AGENT_RACK_DEFAULT_TIMEOUT_SECONDS" "$AGENT_RACK_ALLOWED_WORKSPACES" <<'NODE'
 const fs = require("fs");
 const [file, canonical, maxConcurrent, timeout, workspacesRaw] = process.argv.slice(2);
+// Empty workspacesRaw = use the canonical list unchanged (universal config:
+// the canonical file carries /workspace for the container and the Mac SMB
+// mount /Users/thomas/Netzlaufwerke/developer, both valid wherever they exist).
 const allowedWorkspaces = workspacesRaw.split(":").filter(Boolean).map((p) => p.replace(/^~/, process.env.HOME));
 
 // Start from the canonical config so Mac and container share the identical
@@ -142,7 +147,7 @@ const value = JSON.parse(fs.readFileSync(canonical, "utf8"));
 
 value.transport = "stdio";
 value.enableSseSidecar = true; // macOS: OpenCode app connects through the SSE sidecar
-value.allowedWorkspaces = allowedWorkspaces.length ? allowedWorkspaces : [process.env.HOME];
+if (allowedWorkspaces.length) value.allowedWorkspaces = allowedWorkspaces;
 
 // Keep every canonical security field (executionPolicy, sanitizeEnv,
 // retention, output caps) and override only the environment-specific knobs.
