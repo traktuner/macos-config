@@ -52,7 +52,7 @@ fi
 SMB_SERVER="${SMB_SERVER:-172.16.10.200}"
 SMB_AI_PATH="${SMB_AI_PATH:-tom/tresor/ai-config}"
 MOUNT_POINT="${SMB_AI_MOUNT_POINT:-/Volumes/ai-config}"
-TIMEOUT=30
+SMB_TIMEOUT="${SMB_TIMEOUT:-30}"
 
 # Curated items per tool (files and directories). Secrets (auth.json, the real
 # opencode.jsonc with its apiKey) live only on the trusted share, never in git.
@@ -76,54 +76,10 @@ SENSITIVE_BASENAMES="auth.json opencode.jsonc settings.json config.toml claude_d
 MOUNTED=false
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Credentials from Keychain (same mechanism as 04-ssh-keys.sh)
+# Credentials, stale-share unmount, mount and cleanup come from the shared
+# SMB helpers in core/functions.sh (same mechanism as 04-ssh-keys.sh).
 # ─────────────────────────────────────────────────────────────────────────────
-get_smb_credentials() {
-  if SMB_PASS=$(security find-internet-password -s "$SMB_SERVER" -w 2>/dev/null); then
-    print_info "Credentials found in Keychain for $SMB_SERVER"
-    SMB_USER=$(security find-internet-password -s "$SMB_SERVER" 2>/dev/null \
-      | awk -F'"' '/"acct"<blob>=/{print $(NF-1)}')
-    if [[ -z "${SMB_USER:-}" ]]; then
-      print_error "Found a Keychain password for $SMB_SERVER but could not read the username."
-      return 1
-    fi
-    return 0
-  fi
-
-  print_info "No credentials in Keychain for $SMB_SERVER. Please enter them once (will be saved)."
-  read -r -p "Please enter your SMB username: " SMB_USER
-  read -r -s -p "Please enter your SMB password: " SMB_PASS
-  echo
-  if [[ -z "${SMB_USER:-}" || -z "${SMB_PASS:-}" ]]; then
-    print_error "Username and password cannot be empty"
-    return 1
-  fi
-  print_info "Saving credentials to Keychain..."
-  if security add-internet-password -s "$SMB_SERVER" -a "$SMB_USER" -w "$SMB_PASS" -r smb 2>/dev/null; then
-    print_success "Credentials saved to Keychain (Finder will auto-authenticate)"
-  else
-    print_error "Failed to save credentials to Keychain"
-  fi
-  return 0
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Cleanup trap - unmount share, clear sensitive vars
-# ─────────────────────────────────────────────────────────────────────────────
-cleanup() {
-  local exit_code=$?
-  print_info "Running cleanup..."
-  if [[ "$MOUNTED" == "true" ]]; then
-    print_info "Unmounting ${MOUNT_POINT}…"
-    sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null || \
-      sudo umount -f "${MOUNT_POINT}" &>/dev/null || true
-  fi
-  unset SMB_PASS 2>/dev/null || true
-  unset SMB_USER 2>/dev/null || true
-  [[ $exit_code -eq 0 ]] && print_success "Cleanup completed" || print_error "Cleanup exit code: $exit_code"
-  exit $exit_code
-}
-trap cleanup EXIT INT TERM HUP
+trap smb_cleanup EXIT INT TERM HUP
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -199,32 +155,8 @@ fi
 # Mount the share (Finder uses Keychain credentials) — same flow as ssh-keys
 # ─────────────────────────────────────────────────────────────────────────────
 get_smb_credentials || exit 1
-
-if mount | grep -q "on ${MOUNT_POINT} "; then
-  print_info "Unmounting stale share at ${MOUNT_POINT}…"
-  sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null \
-    && print_success "Stale share unmounted" || print_error "Failed to unmount stale share"
-fi
-
-print_info "Mounting SMB share (Finder will use Keychain credentials)…"
-open "smb://${SMB_SERVER}/${SMB_AI_PATH}" || true
-
-print_info "Waiting up to ${TIMEOUT}s for ${MOUNT_POINT}…"
-elapsed=0
-while [[ ! -d "${MOUNT_POINT}" && ${elapsed} -lt ${TIMEOUT} ]]; do
-  sleep 1
-  (( elapsed++ ))
-done
-if [[ ! -d "${MOUNT_POINT}" ]]; then
-  print_error "Mount did not appear within ${TIMEOUT}s. Aborting."
-  print_info "Check that:"
-  print_info "  • the server ${SMB_SERVER} is reachable (e.g. 'ping ${SMB_SERVER}')"
-  print_info "  • the share path '${SMB_AI_PATH}' is correct in config.properties"
-  print_info "  • the Keychain credentials for ${SMB_SERVER} are valid"
-  exit 1
-fi
-MOUNTED=true
-print_success "SMB share mounted at ${MOUNT_POINT}"
+unmount_stale_share
+mount_smb_share "${SMB_AI_PATH}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sync all three tools

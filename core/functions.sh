@@ -142,6 +142,104 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# -- Shared SMB share helpers (used by 04-ssh-keys.sh and 12-ai-config.sh)
+#    The consumer sets SMB_SERVER / MOUNT_POINT and calls these in order.
+#    Credentials land in the globals SMB_USER / SMB_PASS; the caller keeps the
+#    same variable names as before so the cleanup trap keeps working.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Read SMB credentials from the Keychain (prompt + save on first use).
+get_smb_credentials() {
+  # Try to read from Keychain (stored with server as service name)
+  if SMB_PASS=$(security find-internet-password -s "$SMB_SERVER" -w 2>/dev/null); then
+    print_info "Credentials found in Keychain for $SMB_SERVER"
+    # Extract the account/username from the "acct"<blob>="..." attribute line.
+    # Splitting on the quote character is more robust than a sed regex chain.
+    SMB_USER=$(security find-internet-password -s "$SMB_SERVER" 2>/dev/null \
+      | awk -F'"' '/"acct"<blob>=/{print $(NF-1)}')
+    if [[ -z "${SMB_USER:-}" ]]; then
+      print_error "Found a Keychain password for $SMB_SERVER but could not read the username."
+      return 1
+    fi
+    return 0
+  fi
+
+  # Fallback: prompt for credentials
+  print_info "No credentials in Keychain for $SMB_SERVER. Please enter them once (will be saved)."
+  read -r -p "Please enter your SMB username: " SMB_USER
+  read -r -s -p "Please enter your SMB password: " SMB_PASS
+  echo
+
+  if [[ -z "${SMB_USER:-}" || -z "${SMB_PASS:-}" ]]; then
+    print_error "Username and password cannot be empty"
+    return 1
+  fi
+
+  # Save to Keychain so Finder can auto-authenticate next time
+  print_info "Saving credentials to Keychain..."
+  if security add-internet-password -s "$SMB_SERVER" -a "$SMB_USER" -w "$SMB_PASS" -r smb 2>/dev/null; then
+    print_success "Credentials saved to Keychain (Finder will auto-authenticate)"
+  else
+    print_error "Failed to save credentials to Keychain"
+  fi
+
+  return 0
+}
+
+# Unmount a stale share if one is mounted at $MOUNT_POINT.
+unmount_stale_share() {
+  if mount | grep -q "on ${MOUNT_POINT} "; then
+    print_info "Unmounting stale share at ${MOUNT_POINT}…"
+    sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null \
+      && print_success "Stale share unmounted" \
+      || print_error "Failed to unmount stale share"
+  fi
+}
+
+# Mount SMB_SHARE_PATH (below SMB_SERVER) at MOUNT_POINT and wait up to
+# SMB_TIMEOUT seconds (default 30). Requires Keychain credentials.
+# Sets MOUNTED=true on success; exits the script on failure.
+mount_smb_share() { # $1 = share path (e.g. tom/tresor/ssh)
+  local share_path="$1"
+  local smb_timeout="${SMB_TIMEOUT:-30}"
+  print_info "Mounting SMB share (Finder will use Keychain credentials)…"
+  open "smb://${SMB_SERVER}/${share_path}" || true
+
+  print_info "Waiting up to ${smb_timeout}s for ${MOUNT_POINT}…"
+  local elapsed=0
+  while [[ ! -d "${MOUNT_POINT}" && ${elapsed} -lt ${smb_timeout} ]]; do
+    sleep 1
+    (( elapsed++ ))
+  done
+
+  if [[ ! -d "${MOUNT_POINT}" ]]; then
+    print_error "Mount did not appear within ${smb_timeout}s. Aborting."
+    print_info "Check that:"
+    print_info "  • the server ${SMB_SERVER} is reachable (e.g. 'ping ${SMB_SERVER}')"
+    print_info "  • the share path '${share_path}' is correct in config.properties"
+    print_info "  • the Keychain credentials for ${SMB_SERVER} are valid"
+    exit 1
+  fi
+  MOUNTED=true
+  print_success "SMB share mounted at ${MOUNT_POINT}"
+}
+
+# Unmount MOUNT_POINT if MOUNTED=true and clear credential variables.
+smb_cleanup() {
+  local exit_code=$?
+  print_info "Running cleanup..."
+  if [[ "${MOUNTED:-false}" == "true" ]]; then
+    print_info "Unmounting ${MOUNT_POINT}…"
+    sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null || \
+      sudo umount -f "${MOUNT_POINT}" &>/dev/null || true
+  fi
+  unset SMB_PASS 2>/dev/null || true
+  unset SMB_USER 2>/dev/null || true
+  [[ $exit_code -eq 0 ]] && print_success "Cleanup completed successfully" || print_error "Cleanup completed with exit code: $exit_code"
+  exit $exit_code
+}
+
 # -- Check macOS version (returns 0 if current >= required)
 check_macos_version() {
   local required_version="$1"

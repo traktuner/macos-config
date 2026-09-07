@@ -20,83 +20,22 @@ print_info "SSH Keyfiles – mounting SMB share via Keychain and copying keys"
 SMB_SERVER="${SMB_SERVER:-172.16.10.200}"
 SMB_USER_PATH="${SMB_USER_PATH:-tom/tresor/ssh}"
 MOUNT_POINT="${SMB_MOUNT_POINT:-/Volumes/ssh}"
+SMB_TIMEOUT="${SMB_TIMEOUT:-30}"
 TARGET_DIR="$HOME/.ssh"
-TIMEOUT=30
 SSH_PERMS=600
 
 # Track state for cleanup
 MOUNTED=false
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1) Get credentials from Keychain or prompt
+# 1) Get credentials from Keychain or prompt (shared helper in core/functions.sh)
 # ─────────────────────────────────────────────────────────────────────────────
-get_smb_credentials() {
-  # Try to read from Keychain (stored with server as service name)
-  if SMB_PASS=$(security find-internet-password -s "$SMB_SERVER" -w 2>/dev/null); then
-    print_info "Credentials found in Keychain for $SMB_SERVER"
-    # Extract the account/username from the "acct"<blob>="..." attribute line.
-    # Splitting on the quote character is more robust than a sed regex chain.
-    SMB_USER=$(security find-internet-password -s "$SMB_SERVER" 2>/dev/null \
-      | awk -F'"' '/"acct"<blob>=/{print $(NF-1)}')
-    if [[ -z "$SMB_USER" ]]; then
-      print_error "Found a Keychain password for $SMB_SERVER but could not read the username."
-      return 1
-    fi
-    return 0
-  fi
-
-  # Fallback: prompt for credentials
-  print_info "No credentials in Keychain for $SMB_SERVER. Please enter them once (will be saved)."
-  read -r -p "Please enter your SMB username: " SMB_USER
-  read -r -s -p "Please enter your SMB password: " SMB_PASS
-  echo
-  
-  if [[ -z "$SMB_USER" || -z "$SMB_PASS" ]]; then
-    print_error "Username and password cannot be empty"
-    return 1
-  fi
-  
-  # Save to Keychain so Finder can auto-authenticate next time
-  print_info "Saving credentials to Keychain..."
-  if security add-internet-password -s "$SMB_SERVER" -a "$SMB_USER" -w "$SMB_PASS" -r smb 2>/dev/null; then
-    print_success "Credentials saved to Keychain (Finder will auto-authenticate)"
-  else
-    print_error "Failed to save credentials to Keychain"
-  fi
-  
-  return 0
-}
-
 get_smb_credentials || exit 1
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Cleanup Trap - ensures resources are released on exit
+# Cleanup Trap - ensures resources are released on exit (shared helper)
 # ─────────────────────────────────────────────────────────────────────────────
-cleanup() {
-  local exit_code=$?
-  print_info "Running cleanup..."
-  
-  # Unmount SMB share if it was mounted
-  if [[ "$MOUNTED" == "true" ]]; then
-    print_info "Unmounting ${MOUNT_POINT}…"
-    sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null || \
-      sudo umount -f "${MOUNT_POINT}" &>/dev/null || true
-  fi
-  
-  # Clear sensitive variables
-  unset SMB_PASS
-  unset SMB_USER
-  
-  if [[ $exit_code -eq 0 ]]; then
-    print_success "Cleanup completed successfully"
-  else
-    print_error "Cleanup completed with exit code: $exit_code"
-  fi
-  
-  exit $exit_code
-}
-
-trap cleanup EXIT INT TERM HUP
+trap smb_cleanup EXIT INT TERM HUP
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) Ensure target dir exists with proper permissions
@@ -106,41 +45,10 @@ chmod 700 "${TARGET_DIR}"
 print_success "SSH directory prepared with correct permissions"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3) Unmount stale share if present
+# 3) Unmount stale share if present, then mount (shared helpers)
 # ─────────────────────────────────────────────────────────────────────────────
-if mount | grep -q "on ${MOUNT_POINT} "; then
-  print_info "Unmounting stale share at ${MOUNT_POINT}…"
-  sudo diskutil unmount "${MOUNT_POINT}" &>/dev/null \
-    && print_success "Stale share unmounted" \
-    || print_error "Failed to unmount stale share"
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4) Mount SMB share – Finder reads credentials from Keychain automatically
-# ─────────────────────────────────────────────────────────────────────────────
-print_info "Mounting SMB share (Finder will use Keychain credentials)…"
-open "smb://${SMB_SERVER}/${SMB_USER_PATH}" || true
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5) Wait up to $TIMEOUT seconds for the mount-point to appear
-# ─────────────────────────────────────────────────────────────────────────────
-print_info "Waiting up to ${TIMEOUT}s for ${MOUNT_POINT}…"
-elapsed=0
-while [[ ! -d "${MOUNT_POINT}" && ${elapsed} -lt ${TIMEOUT} ]]; do
-  sleep 1
-  (( elapsed++ ))
-done
-
-if [[ ! -d "${MOUNT_POINT}" ]]; then
-  print_error "Mount did not appear within ${TIMEOUT}s. Aborting."
-  print_info "Check that:"
-  print_info "  • the server ${SMB_SERVER} is reachable (e.g. 'ping ${SMB_SERVER}')"
-  print_info "  • the share path '${SMB_USER_PATH}' is correct"
-  print_info "  • the Keychain credentials for ${SMB_SERVER} are valid"
-  exit 1
-fi
-MOUNTED=true
-print_success "SMB share mounted at ${MOUNT_POINT}"
+unmount_stale_share
+mount_smb_share "${SMB_USER_PATH}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 6) Copy SSH keys if any exist
