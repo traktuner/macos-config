@@ -110,6 +110,9 @@ for f in "${POLICY_FILES[@]}"; do
     exit 1
   fi
 done
+python3 "$AGENT_RACK_POLICY_SOURCE/validate-agent-rack-workspaces.py" \
+  "$AGENT_RACK_POLICY_SOURCE/config.json"
+print_success "agent-rack universal workspace policy validated"
 ensure_directory "$CONFIG_DIR" false
 backup_file() { # $1 = path to back up if it exists
   if [[ -e "$1" ]]; then

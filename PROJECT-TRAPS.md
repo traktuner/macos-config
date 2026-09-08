@@ -8,3 +8,10 @@
 - **Do not trust `git stash`/`git gc`/`git commit` on the SMB-mounted repo checkout to work reliably.** SMB-locked `.git/objects` sub-directories can silently make specific fan-out dirs read-only for macOS git, breaking `git stash push`/`git commit` with `insufficient permission for adding an object`. Recovery: `mv <dir> <dir>_old && mkdir <dir>`, then `cp` (not `mv`) each object into the fresh dir; the objects themselves stay SMB-locked, but the new dir is writable and `git fsck` is clean afterwards. Leftover `<dir>_old` remnants with locked objects are harmless — git ignores foreign dirs in `.git/objects` (deleted from SMB side later).
 
 - **Do not let an agent-rack reinstall erase the synchronous parallel join guarantee.** Keep `agent-rack-join-patch.mjs` in both `utils/15-agent-rack.sh`'s policy list and `utils/12-ai-config.sh`'s backup list, then execute it after the pinned package install (`utils/15-agent-rack.sh`).
+
+- **Do not install an agent-rack policy that only permits `/workspace`.** Local
+  audit repositories live under `/Users/thomas/Developer` and
+  `/Users/thomas/Netzlaufwerke/developer`; stock agent-rack rejects a worker
+  before launch when its workspace is absent. `15-agent-rack.sh` must validate
+  the canonical universal list before it copies `config.json`
+  (`stacks/t3code/agent-rack-policies/validate-agent-rack-workspaces.py`).
