@@ -11,13 +11,18 @@ set -euo pipefail
 # Only environment specifics differ on the Mac: allowed workspaces, session
 # concurrency/timeout, and the SSE sidecar flag, taken from config.properties.
 #
-# agent-rack itself is upstream software: this script only pins a version,
-# deploys the shared config, reconciles the managed root-policy block, and
-# calls stock commands — nothing custom is layered on top. Safe to re-run;
+# agent-rack itself remains upstream software. This script pins its version,
+# deploys the shared config, applies one version-gated join patch, reconciles
+# the managed root-policy block, and calls stock commands. Safe to re-run;
 # all steps are idempotent.
 
 : "${ROOT_DIR:=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 source "$ROOT_DIR/core/functions.sh"
+
+# Keep an explicit one-off policy source above config.properties. This is used
+# for a safe bootstrap or urgent convergence from a reviewed checkout; the
+# persisted value remains the normal default for unattended runs.
+AGENT_RACK_POLICY_SOURCE_OVERRIDE="${AGENT_RACK_POLICY_SOURCE:-}"
 
 CONFIG_FILE="$ROOT_DIR/utils/config.properties"
 if [[ -f "$CONFIG_FILE" ]]; then
@@ -36,11 +41,11 @@ AGENT_RACK_DEFAULT_TIMEOUT_SECONDS="${AGENT_RACK_DEFAULT_TIMEOUT_SECONDS:-43200}
 # (universal config; it carries /workspace and the Mac SMB mount path).
 # Colon-separated override for environment-specific additions.
 AGENT_RACK_ALLOWED_WORKSPACES="${AGENT_RACK_ALLOWED_WORKSPACES:-}"
-# Canonical policy source (infra checkout). Must contain the 9 policy files
+# Canonical policy source (infra checkout). Must contain the 10 policy files
 # deployed identically to the t3code container. 12-ai-config.sh restores a
 # snapshot of the same files to ~/.config/agent-rack/ from the SMB share;
 # this script overwrites that snapshot from the live canonical source.
-AGENT_RACK_POLICY_SOURCE="${AGENT_RACK_POLICY_SOURCE:-$HOME/Developer/_repos/infra/infra/stacks/t3code/agent-rack-policies}"
+AGENT_RACK_POLICY_SOURCE="${AGENT_RACK_POLICY_SOURCE_OVERRIDE:-${AGENT_RACK_POLICY_SOURCE:-$HOME/Developer/_repos/infra/infra/stacks/t3code/agent-rack-policies}}"
 
 POLICY_FILES=(
   config.json
@@ -52,6 +57,7 @@ POLICY_FILES=(
   RESEARCH.md
   SOURCES.md
   ROOT-BLOCK.md
+  agent-rack-join-patch.mjs
 )
 
 CONFIG_DIR="$HOME/.config/agent-rack"
@@ -124,6 +130,12 @@ chmod 600 "$CONFIG_JSON"
 for f in agent-rack.profiles.json agent-rack.security-overlay.json; do
   chmod 600 "$CONFIG_DIR/$f"
 done
+
+# agent-rack 0.12.1 has only detached parallel sessions. Apply the canonical,
+# version-gated join patch after every install so a result-dependent parent can
+# wait for all workers without an external watcher or an impossible callback.
+node "$CONFIG_DIR/agent-rack-join-patch.mjs"
+print_success "agent-rack synchronous parallel join patch active"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3) Environment overlays on the live user config (~/.config/agent-rack/config.json)
