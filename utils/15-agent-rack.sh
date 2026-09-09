@@ -34,7 +34,10 @@ else
 fi
 
 AGENT_RACK_VERSION="${AGENT_RACK_VERSION:-0.12.1}"
-AGENT_RACK_MAX_CONCURRENT_SESSIONS="${AGENT_RACK_MAX_CONCURRENT_SESSIONS:-6}"
+# Keep one provider slot available for the root turn. The parallel-join patch
+# further batches worker waves to three child processes, avoiding the observed
+# root-plus-six-Lumo burst that triggered provider 429s.
+AGENT_RACK_MAX_CONCURRENT_SESSIONS="${AGENT_RACK_MAX_CONCURRENT_SESSIONS:-4}"
 AGENT_RACK_DEFAULT_TIMEOUT_SECONDS="${AGENT_RACK_DEFAULT_TIMEOUT_SECONDS:-43200}"
 # Workspaces the rack may operate in (stock security.allowedWorkspaces).
 # Default: empty = take the canonical list from the policy config unchanged
