@@ -9,12 +9,60 @@ set -euo pipefail
 ONYX_MCP_URL="${ONYX_MCP_URL:-https://onyx.oncloud.at/mcp}"
 ONYX_KEYCHAIN_SERVICE="${ONYX_KEYCHAIN_SERVICE:-onyx-mcp-token}"
 
+# Fresh-machine recovery: utils/12-ai-config.sh restores the private harness
+# configs from the SMB tresor before this script runs, and those configs
+# already carry the Onyx Authorization header. Recover the token from them.
+recover_onyx_token_from_configs() {
+  node 2>/dev/null <<'NODE' || true
+const fs = require("fs");
+const path = require("path");
+const home = process.env.HOME;
+
+const jsonCandidates = [
+  path.join(home, ".claude.json"),
+  path.join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json"),
+];
+for (const file of jsonCandidates) {
+  try {
+    const value = JSON.parse(fs.readFileSync(file, "utf8"));
+    const authorization = value?.mcpServers?.onyx?.headers?.Authorization;
+    if (typeof authorization === "string" && authorization.startsWith("Bearer ")) {
+      process.stdout.write(authorization.slice("Bearer ".length));
+      process.exit(0);
+    }
+  } catch {}
+}
+
+const textCandidates = [
+  path.join(home, ".codex", "config.toml"),
+  path.join(home, ".config", "opencode", "opencode.jsonc"),
+];
+for (const file of textCandidates) {
+  try {
+    const text = fs.readFileSync(file, "utf8");
+    const onyxStart = text.indexOf("onyx");
+    if (onyxStart < 0) continue;
+    const tail = text.slice(onyxStart);
+    const match = tail.match(/Authorization[\u0022\u0027\s:=]+Bearer ([^\u0022\u0027\s]+)/);
+    if (match) {
+      process.stdout.write(match[1]);
+      process.exit(0);
+    }
+  } catch {}
+}
+NODE
+}
+
 onyx_token="$(launchctl getenv ONYX_TOKEN 2>/dev/null || true)"
 if [[ -z "$onyx_token" ]]; then
   onyx_token="$(security find-generic-password -s "$ONYX_KEYCHAIN_SERVICE" -w 2>/dev/null || true)"
 fi
 if [[ -z "$onyx_token" ]]; then
-  printf 'ONYX_TOKEN is unavailable in launchctl and Keychain service %s\n' "$ONYX_KEYCHAIN_SERVICE" >&2
+  onyx_token="$(recover_onyx_token_from_configs)"
+fi
+if [[ -z "$onyx_token" ]]; then
+  printf 'ONYX_TOKEN is unavailable in launchctl, Keychain service %s, and the restored AI configs.\n' "$ONYX_KEYCHAIN_SERVICE" >&2
+  printf 'Seed it with `launchctl setenv ONYX_TOKEN <token>` or run `utils/12-ai-config.sh pull` first.\n' >&2
   exit 1
 fi
 
