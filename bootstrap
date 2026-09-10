@@ -133,12 +133,28 @@ offer_rollback() {
   fi
 }
 
+# Homebrew installs its bin directory outside the default PATH (notably
+# /opt/homebrew/bin on Apple Silicon). utils/02-homebrew.sh evaluates brew
+# shellenv only inside its own subprocess and persists the PATH change in
+# shell profiles, so this runner session and later child scripts keep the
+# original PATH and cannot resolve node/npm. Adopt the Homebrew bin
+# directory into this session before every script runs.
+refresh_homebrew_path() {
+  local prefix
+  for prefix in /opt/homebrew /usr/local; do
+    if [[ -x "$prefix/bin/brew" && ":$PATH:" != *":$prefix/bin:"* ]]; then
+      export PATH="$prefix/bin:$PATH"
+    fi
+  done
+}
+
 # Function to execute scripts with error tracking
 run_scripts() {
   local scripts=("$@")
   local failed=0
   
   for script in "${scripts[@]}"; do
+    refresh_homebrew_path
     print_info "Running $(basename "$script")..."
     if bash "$script"; then
       print_success "Completed: $(basename "$script")"

@@ -9,11 +9,29 @@ set -euo pipefail
 ONYX_MCP_URL="${ONYX_MCP_URL:-https://onyx.oncloud.at/mcp}"
 ONYX_KEYCHAIN_SERVICE="${ONYX_KEYCHAIN_SERVICE:-onyx-mcp-token}"
 
+# utils/02-homebrew.sh installs node, but this script can run inside a
+# bootstrap session whose PATH predates the Homebrew installation
+# (notably on Apple Silicon, where /opt/homebrew/bin is not a default
+# PATH entry). Resolve the interpreter explicitly as a fallback.
+NODE_BIN="$(command -v node || true)"
+if [[ -z "$NODE_BIN" ]]; then
+  for candidate in /opt/homebrew/bin/node /usr/local/bin/node; do
+    if [[ -x "$candidate" ]]; then
+      NODE_BIN="$candidate"
+      break
+    fi
+  done
+fi
+if [[ -z "$NODE_BIN" ]]; then
+  printf 'node was not found. Run utils/02-homebrew.sh (or install Node.js), then rerun this script.\n' >&2
+  exit 1
+fi
+
 # Fresh-machine recovery: utils/12-ai-config.sh restores the private harness
 # configs from the SMB tresor before this script runs, and those configs
 # already carry the Onyx Authorization header. Recover the token from them.
 recover_onyx_token_from_configs() {
-  node 2>/dev/null <<'NODE' || true
+  "$NODE_BIN" 2>/dev/null <<'NODE' || true
 const fs = require("fs");
 const path = require("path");
 const home = process.env.HOME;
@@ -27,7 +45,7 @@ for (const file of jsonCandidates) {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
     const authorization = value?.mcpServers?.onyx?.headers?.Authorization;
     if (typeof authorization === "string" && authorization.startsWith("Bearer ")) {
-      process.stdout.write(authorization.slice("Bearer ".length));
+      fs.writeSync(1, authorization.slice("Bearer ".length));
       process.exit(0);
     }
   } catch {}
@@ -45,7 +63,7 @@ for (const file of textCandidates) {
     const tail = text.slice(onyxStart);
     const match = tail.match(/Authorization[\u0022\u0027\s:=]+Bearer ([^\u0022\u0027\s]+)/);
     if (match) {
-      process.stdout.write(match[1]);
+      fs.writeSync(1, match[1]);
       process.exit(0);
     }
   } catch {}
@@ -75,7 +93,7 @@ security add-generic-password \
 export ONYX_MCP_URL
 export ONYX_TOKEN="$onyx_token"
 
-node <<'NODE'
+"$NODE_BIN" <<'NODE'
 const fs = require("fs");
 const path = require("path");
 
