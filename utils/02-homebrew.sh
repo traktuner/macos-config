@@ -77,33 +77,49 @@ else
   print_info "'brew trust' not available in this Homebrew version — skipping tap trust"
 fi
 
-# 5) Check Mac App Store sign-in and decide whether to install MAS apps
+# 5) Ask up front whether to install MAS apps (independent of mas being installed yet;
+#    mas is part of the Brewfile, so we can install it first if the user opts in).
 INSTALL_MAS_APPS=false
-if command_exists mas; then
-  # mas account exits 1 if not signed in (macOS Monterey+ removed programmatic sign-in)
-  if mas account &>/dev/null; then
-    print_success "App Store: signed in"
-    INSTALL_MAS_APPS=true
-  else
-    print_info "App Store: not signed in"
-    print_info "Please sign in via App Store.app to install MAS apps."
-    print_info "Opening App Store..."
-    open -a "App Store" 2>/dev/null || true
-    ask_for_confirmation "Have you signed in to the App Store?"
-    if answer_is_yes; then
-      if mas account &>/dev/null; then
-        print_success "App Store: signed in"
-        INSTALL_MAS_APPS=true
-      else
-        print_error "Still not signed in — skipping MAS apps"
-      fi
-    else
-      print_info "Skipping MAS apps"
-    fi
+ask_for_confirmation "Install Mac App Store apps? (requires App Store sign-in)"
+if answer_is_yes; then
+  INSTALL_MAS_APPS=true
+  # mas is bundled in the Brewfile; make it available before the sign-in check below.
+  if ! command_exists mas; then
+    print_info "Installing mas CLI first..."
+    brew install mas || print_error "Failed to install mas — skipping MAS apps"
   fi
 else
-  print_info "mas not yet installed — MAS apps will be installed if mas becomes available during brew bundle"
-  INSTALL_MAS_APPS=true
+  print_info "Skipping MAS apps"
+fi
+
+# Check Mac App Store sign-in and decide whether to install MAS apps
+if [[ "$INSTALL_MAS_APPS" == true ]]; then
+  INSTALL_MAS_APPS=false
+  if command_exists mas; then
+    # mas account exits 1 if not signed in (macOS Monterey+ removed programmatic sign-in)
+    if mas account &>/dev/null; then
+      print_success "App Store: signed in"
+      INSTALL_MAS_APPS=true
+    else
+      print_info "App Store: not signed in"
+      print_info "Please sign in via App Store.app to install MAS apps."
+      print_info "Opening App Store..."
+      open -a "App Store" 2>/dev/null || true
+      ask_for_confirmation "Have you signed in to the App Store?"
+      if answer_is_yes; then
+        if mas account &>/dev/null; then
+          print_success "App Store: signed in"
+          INSTALL_MAS_APPS=true
+        else
+          print_error "Still not signed in — skipping MAS apps"
+        fi
+      else
+        print_info "Skipping MAS apps"
+      fi
+    fi
+  else
+    print_error "mas is not available — skipping MAS apps"
+  fi
 fi
 
 # 6) Install from Brewfile (with up to 3 retries for transient download failures)
