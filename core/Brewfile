@@ -25,7 +25,7 @@ cask 'firefox'
 # Privacy & Security
 cask 'cryptomator'
 cask 'little-snitch'
-cask 'microsoft-defender'
+#cask 'microsoft-defender'
 cask 'tailscale-app'
 
 # Proton Suite
