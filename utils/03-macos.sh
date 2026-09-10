@@ -377,17 +377,17 @@ defaults import com.apple.spotlight "$SPOTLIGHT_PLIST" 2>/dev/null \
 rm -f "$SPOTLIGHT_PLIST"
 
 ###############################################################################
-# Wallpaper
+# Wallpaper (currently disabled — re-enable by uncommenting this block)
 ###############################################################################
-print_info "Setting default wallpaper..."
-WALLPAPER_PATH="${WALLPAPER_PATH:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.jpeg}"
-if [[ -f "$WALLPAPER_PATH" ]]; then
-  osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$WALLPAPER_PATH\"" \
-    && print_success "Wallpaper set" \
-    || print_error "Failed to set wallpaper"
-else
-  print_info "Wallpaper file not found at $WALLPAPER_PATH - skipping"
-fi
+# print_info "Setting default wallpaper..."
+# WALLPAPER_PATH="${WALLPAPER_PATH:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/wallpaper/default.jpeg}"
+# if [[ -f "$WALLPAPER_PATH" ]]; then
+#   osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$WALLPAPER_PATH\"" \
+#     && print_success "Wallpaper set" \
+#     || print_error "Failed to set wallpaper"
+# else
+#   print_info "Wallpaper file not found at $WALLPAPER_PATH - skipping"
+# fi
 
 ###############################################################################
 # Spotlight
