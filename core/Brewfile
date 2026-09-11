@@ -30,7 +30,7 @@ cask 'tailscale-app'
 
 # Proton Suite
 cask 'proton-drive'
-cask 'proton-mail'
+#cask 'proton-mail'
 cask 'proton-mail-bridge'
 cask 'proton-pass'
 cask 'protonvpn'
