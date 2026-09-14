@@ -27,10 +27,11 @@ fi
 #            bash utils/12-ai-config.sh save
 #
 # Expected layout on the share (SMB_AI_PATH):
-#   <share>/claude/     -> ~/.claude/              (CLAUDE.md, settings.json, agents, commands)
+#   <share>/claude/     -> ~/.claude/              (CLAUDE.md, settings.json, agents, commands, skills)
 #   <share>/claude-desktop/ -> ~/Library/Application Support/Claude/
 #   <share>/codex/      -> ~/.codex/               (config.toml, AGENTS.md, hooks.json, rules, auth.json)
-#   <share>/opencode/   -> ~/.config/opencode/     (policy, agents, skills, plugins, tests, tools/watchers)
+#   <share>/agents/     -> ~/.agents/              (shared Agent Skills for Codex/OpenCode/Cursor)
+#   <share>/opencode/   -> ~/.config/opencode/     (policy, agents, plugins, tests, tools/watchers)
 #                                                  plugins include the local Lumo usage estimator
 #                                                  that restores proactive compaction when Lumo omits usage
 #   <share>/agent-rack/ -> ~/.config/agent-rack/   (canonical 27-agent config
@@ -56,13 +57,15 @@ SMB_TIMEOUT="${SMB_TIMEOUT:-30}"
 
 # Curated items per tool (files and directories). Secrets (auth.json, the real
 # opencode.jsonc with its apiKey) live only on the trusted share, never in git.
-# NOTE: `skills` removed 2026-07 — the installed ~/.claude/skills were retired; syncing them would
-# resurrect dead routing. Per-project memory (~/.claude/projects/*/memory) is version-controlled in
-# its own git repo, not synced here (the copy_item rm -rf + flat-item model can't carry a nested path).
-CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(CLAUDE.md settings.json agents commands)
+# Personal Claude skills and shared Agent Skills have separate source trees.
+# Claude keeps its adapted variants in claude/skills; Codex/OpenCode/Cursor use
+# the harness-neutral variants in agents/skills. Do not put a second copy in
+# ~/.config/opencode/skills because OpenCode scans all three global roots.
+CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(CLAUDE.md settings.json agents commands skills)
 CLAUDE_DESKTOP_TARGET="$HOME/Library/Application Support/Claude"; CLAUDE_DESKTOP_ITEMS=(claude_desktop_config.json)
 CODEX_TARGET="$HOME/.codex";             CODEX_ITEMS=(config.toml AGENTS.md hooks.json rules auth.json)
-OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc AGENTS.md package.json package-lock.json doctor.sh rules agents commands skills tools plugins tests)
+AGENTS_TARGET="$HOME/.agents";           AGENTS_ITEMS=(skills)
+OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc AGENTS.md package.json package-lock.json doctor.sh rules agents commands tools plugins tests)
 # agent-rack: the canonical 27-agent config plus the shared policy set from
 # the infra repository (agent-rack-policies). 15-agent-rack.sh redeploys these
 # from the live infra checkout on the new machine; the share copy is the
@@ -95,11 +98,25 @@ backup_target() { # $1 = path to back up if it exists
 
 copy_item() { # $1 = src (file/dir), $2 = dst (full path incl. name)
   if [[ -d "$1" ]]; then
-    rm -rf "$2"
-    cp -R "$1" "$2"
+    mkdir -p "$2"
+    # The whole curated item is backed up before synchronization. Remove
+    # obsolete entries so a later restore cannot resurrect retired code.
+    rsync -a --delete "$1/" "$2/"
   else
+    mkdir -p "$(dirname "$2")"
     cp "$1" "$2"
   fi
+}
+
+needs_sync() { # $1 = src, $2 = dst
+  if [[ -d "$1" ]]; then
+    [[ ! -d "$2" ]] && return 0
+    local changes
+    changes="$(rsync -anir --delete "$1/" "$2/")" || return 0
+    [[ -n "$changes" ]]
+    return
+  fi
+  [[ ! -f "$2" ]] || ! cmp -s "$1" "$2"
 }
 
 is_sensitive() { # $1 = basename
@@ -122,11 +139,16 @@ sync_tool() {
     for item in "${items[@]}"; do
       local src="${share_dir}/${item}" dst="${target}/${item}"
       [[ -e "$src" ]] || continue
+      if ! needs_sync "$src" "$dst"; then
+        if [[ -f "$dst" ]] && is_sensitive "$item"; then chmod 600 "$dst"; fi
+        print_info "${sub}/${item} already current"
+        continue
+      fi
       backup_target "$dst"
       copy_item "$src" "$dst"
       if [[ -f "$dst" ]] && is_sensitive "$item"; then chmod 600 "$dst"; fi
       print_success "pulled ${sub}/${item}"
-      ((count++))
+      count=$((count + 1))
     done
     print_info "${sub}: ${count} item(s) copied into ${target}"
   else # save
@@ -134,9 +156,14 @@ sync_tool() {
     for item in "${items[@]}"; do
       local src="${target}/${item}" dst="${share_dir}/${item}"
       [[ -e "$src" ]] || continue
+      if ! needs_sync "$src" "$dst"; then
+        print_info "${sub}/${item} already current on share"
+        continue
+      fi
+      backup_target "$dst"
       copy_item "$src" "$dst"
       print_success "saved ${sub}/${item} -> share"
-      ((count++))
+      count=$((count + 1))
     done
     print_info "${sub}: ${count} item(s) uploaded to the share"
   fi
@@ -158,6 +185,31 @@ get_smb_credentials || exit 1
 unmount_stale_share
 mount_smb_share "${SMB_AI_PATH}"
 
+# Never restore a historical or partial agent-rack pair. This check runs before
+# any local file is changed and is also used before saving a new source pair.
+if [[ "$MODE" == "pull" ]]; then
+  if [[ ! -f "$MOUNT_POINT/agent-rack/config.json" || ! -f "$MOUNT_POINT/agent-rack/agent-rack.profiles.json" ]]; then
+    print_error "agent-rack restore pair is incomplete on the share"
+    exit 1
+  fi
+  python3 "$ROOT_DIR/utils/validate-agent-rack-policy.py" \
+    "$MOUNT_POINT/agent-rack/config.json" \
+    "$MOUNT_POINT/agent-rack/agent-rack.profiles.json"
+fi
+
+if [[ "$MODE" == "pull" ]]; then
+  if [[ ! -d "$MOUNT_POINT/agents/skills" || ! -d "$MOUNT_POINT/claude/skills" ]]; then
+    print_error "skill restore sources are incomplete on the share (agents/skills and claude/skills are required)"
+    exit 1
+  fi
+fi
+
+if [[ "$MODE" == "save" ]]; then
+  python3 "$ROOT_DIR/utils/validate-agent-rack-policy.py" \
+    "$AGENT_RACK_TARGET/config.json" \
+    "$AGENT_RACK_TARGET/agent-rack.profiles.json"
+fi
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sync all three tools
 # ─────────────────────────────────────────────────────────────────────────────
@@ -165,6 +217,7 @@ print_info "AI config sync — mode: ${MODE}"
 sync_tool "claude"   "$CLAUDE_TARGET"   "${CLAUDE_ITEMS[@]}"
 sync_tool "claude-desktop" "$CLAUDE_DESKTOP_TARGET" "${CLAUDE_DESKTOP_ITEMS[@]}"
 sync_tool "codex"    "$CODEX_TARGET"    "${CODEX_ITEMS[@]}"
+sync_tool "agents"   "$AGENTS_TARGET"   "${AGENTS_ITEMS[@]}"
 sync_tool "opencode" "$OPENCODE_TARGET" "${OPENCODE_ITEMS[@]}"
 sync_tool "agent-rack" "$AGENT_RACK_TARGET" "${AGENT_RACK_ITEMS[@]}"
 

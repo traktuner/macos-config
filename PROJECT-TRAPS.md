@@ -15,3 +15,13 @@
   before launch when its workspace is absent. `15-agent-rack.sh` must validate
   the canonical universal list before it copies `config.json`
   (`stacks/t3code/agent-rack-policies/validate-agent-rack-workspaces.py`).
+
+- **Do not restore an agent-rack policy with `mcp_servers.agent_rack.enabled=false`.** Codex reads it as a separate incomplete MCP server and aborts every worker with `invalid transport`. `utils/15-agent-rack.sh` must validate both canonical JSON files before copying them; the only valid child override is `mcp_servers.agent-rack.enabled=false`.
+
+- **Use the SMB checkout as the Mac configuration source.** Resolve the live checkout before editing or publishing. The former `Developer/_repos` checkout is stale. `utils/config.properties` and `utils/15-agent-rack.sh` must use the mounted Infra checkout or a validated restored policy directory.
+
+- **Keep one active entry point per shared skill.** OpenCode scans nested `SKILL.md` files and multiple global roots. Duplicate IDs generate warnings. Preserve Claude adaptations, use `~/.agents/skills` for shared skills, and quarantine duplicate OpenCode copies and nested entry points. Duplicate skills did not cause the separately reproduced OpenCode 1.18.30 prompt crash.
+
+- **Copy agent-rack skills to the explicit shared directory.** In agent-rack 0.12.1, `cp --target codex` writes to `~/.codex/skills`. Use the shared `~/.agents/skills` destination and quarantine legacy copies to keep harness sources consistent (`utils/15-agent-rack.sh`).
+
+- **Keep the OpenCode 1.18.30 workaround restorable and version-specific.** The observed `SystemPrompt.environment` crash happened before the Lumo request. `utils/opencode-wrapper.sh` selects verified 1.18.20 only for 1.18.30. Other Homebrew versions remain eligible and need a real prompt test. A newer version is not proven fixed merely because the wrapper permits it.

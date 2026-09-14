@@ -127,6 +127,30 @@ sessions here run for many hours, and sets `security.maxConcurrentSessions`.
 No LaunchAgent or daemon is created: agent-rack runs over stdio and is
 started by each MCP client on demand.
 
+Use the mounted `developer/repos/personal/macos-config` checkout for these scripts.
+The default Infra policy source is under `~/Netzlaufwerke/developer/repos/infra/infra`.
+Set `AGENT_RACK_POLICY_SOURCE` for another mount layout. If that source is absent,
+the installer validates and uses the restored `~/.config/agent-rack` policy set.
+
+Restore private configurations with `bash utils/12-ai-config.sh pull`, then run
+`bash utils/13-onyx-mcp.sh` and `bash utils/15-agent-rack.sh`.
+The private backup must include `agents/skills`, `claude/skills`, and the full
+agent-rack policy set. Save those sources with `bash utils/12-ai-config.sh save`.
+Changed curated items receive recoverable backups; synchronization removes
+obsolete entries inside those items. Unchanged content does not create backups.
+Conflicting skill quarantine destinations stop reconciliation for inspection.
+
+The agent-rack installer also restores `~/.local/bin/opencode`. This wrapper
+bypasses the observed OpenCode 1.18.30 prompt regression using the checksum-verified
+1.18.20 fallback. Homebrew remains unpinned and later versions remain eligible.
+Put `~/.local/bin` before Homebrew in the launching shell's PATH. An application
+that launches an absolute Homebrew path does not use the wrapper. Test a real
+prompt after updates; a version check does not prove model or tool operation.
+
+Run focused restore checks with `python3 -B -m unittest discover -s tests`.
+These checks use temporary fixtures; a full macOS reinstall is a separate
+acceptance test.
+
 ## Security
 
 - Time Machine snapshot before making changes

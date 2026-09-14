@@ -34,9 +34,7 @@ else
 fi
 
 AGENT_RACK_VERSION="${AGENT_RACK_VERSION:-0.12.1}"
-# Keep one provider slot available for the root turn. The parallel-join patch
-# further batches worker waves to three child processes, avoiding the observed
-# root-plus-six-Lumo burst that triggered provider 429s.
+# Keep one provider slot available for the root; worker waves remain bounded.
 AGENT_RACK_MAX_CONCURRENT_SESSIONS="${AGENT_RACK_MAX_CONCURRENT_SESSIONS:-4}"
 AGENT_RACK_DEFAULT_TIMEOUT_SECONDS="${AGENT_RACK_DEFAULT_TIMEOUT_SECONDS:-43200}"
 # Workspaces the rack may operate in (stock security.allowedWorkspaces).
@@ -44,11 +42,10 @@ AGENT_RACK_DEFAULT_TIMEOUT_SECONDS="${AGENT_RACK_DEFAULT_TIMEOUT_SECONDS:-43200}
 # (universal config; it carries /workspace and the Mac SMB mount path).
 # Colon-separated override for environment-specific additions.
 AGENT_RACK_ALLOWED_WORKSPACES="${AGENT_RACK_ALLOWED_WORKSPACES:-}"
-# Canonical policy source (infra checkout). Must contain the 10 policy files
-# deployed identically to the t3code container. 12-ai-config.sh restores a
-# snapshot of the same files to ~/.config/agent-rack/ from the SMB share;
-# this script overwrites that snapshot from the live canonical source.
-AGENT_RACK_POLICY_SOURCE="${AGENT_RACK_POLICY_SOURCE_OVERRIDE:-${AGENT_RACK_POLICY_SOURCE:-$HOME/Developer/_repos/infra/infra/stacks/t3code/agent-rack-policies}}"
+# Canonical policy source (infra checkout). A complete restored agent-rack
+# directory is a safe bootstrap fallback when the infra checkout is not yet
+# present after a Mac reinstall.
+AGENT_RACK_POLICY_SOURCE="${AGENT_RACK_POLICY_SOURCE_OVERRIDE:-${AGENT_RACK_POLICY_SOURCE:-$HOME/Netzlaufwerke/developer/repos/infra/infra/stacks/t3code/agent-rack-policies}}"
 
 POLICY_FILES=(
   config.json
@@ -103,9 +100,14 @@ AGENT_RACK_BIN="$(command -v agent-rack)"
 #    the environment-specific fields below are overridden afterwards.
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ ! -d "$AGENT_RACK_POLICY_SOURCE" ]]; then
-  print_error "Canonical policy source not found: $AGENT_RACK_POLICY_SOURCE"
-  print_info "Clone the infra repository or set AGENT_RACK_POLICY_SOURCE in config.properties."
-  exit 1
+  if [[ -d "$CONFIG_DIR" ]]; then
+    AGENT_RACK_POLICY_SOURCE="$CONFIG_DIR"
+    print_info "Infra checkout not present; using the validated restored agent-rack policy"
+  else
+    print_error "Canonical policy source not found: $AGENT_RACK_POLICY_SOURCE"
+    print_info "Restore ~/.config/agent-rack or clone the infra repository first."
+    exit 1
+  fi
 fi
 for f in "${POLICY_FILES[@]}"; do
   if [[ ! -f "$AGENT_RACK_POLICY_SOURCE/$f" ]]; then
@@ -113,9 +115,10 @@ for f in "${POLICY_FILES[@]}"; do
     exit 1
   fi
 done
-python3 "$AGENT_RACK_POLICY_SOURCE/validate-agent-rack-workspaces.py" \
-  "$AGENT_RACK_POLICY_SOURCE/config.json"
-print_success "agent-rack universal workspace policy validated"
+python3 "$ROOT_DIR/utils/validate-agent-rack-policy.py" \
+  "$AGENT_RACK_POLICY_SOURCE/config.json" \
+  "$AGENT_RACK_POLICY_SOURCE/agent-rack.profiles.json"
+print_success "agent-rack universal workspace and profile policy validated"
 ensure_directory "$CONFIG_DIR" false
 backup_file() { # $1 = path to back up if it exists
   if [[ -e "$1" ]]; then
@@ -123,7 +126,60 @@ backup_file() { # $1 = path to back up if it exists
     print_info "Backed up $(basename "$1")"
   fi
 }
+
+# Keep the OpenCode workaround in the restorable Mac configuration. The
+# wrapper bypasses only the known-bad 1.18.30 release; later Brew releases are
+# used automatically. Download the fallback only when Brew currently exposes
+# the bad release or when no Brew binary exists.
+OPENCODE_WRAPPER_SOURCE="$ROOT_DIR/utils/opencode-wrapper.sh"
+OPENCODE_WRAPPER_TARGET="$HOME/.local/bin/opencode"
+OPENCODE_STABLE_VERSION="1.18.20"
+OPENCODE_STABLE_SHA256="b483e547c029b4f0ba381f0d0c5b420bec48c24c2bbec1fb7f22252bae83da46"
+OPENCODE_STABLE_DIR="$HOME/.local/share/opencode/$OPENCODE_STABLE_VERSION"
+OPENCODE_STABLE_BIN="$OPENCODE_STABLE_DIR/opencode"
+OPENCODE_BREW_BIN="/opt/homebrew/opt/opencode/bin/opencode"
+OPENCODE_BREW_VERSION=""
+if [[ -x "$OPENCODE_BREW_BIN" ]]; then
+  OPENCODE_BREW_VERSION="$($OPENCODE_BREW_BIN --version 2>/dev/null || true)"
+fi
+if [[ ! -x "$OPENCODE_STABLE_BIN" && "$OPENCODE_BREW_VERSION" == 1.18.30* ]] ||
+   [[ ! -x "$OPENCODE_STABLE_BIN" && ! -x "$OPENCODE_BREW_BIN" ]]; then
+  if [[ "$(uname -s)" != Darwin || "$(uname -m)" != arm64 ]]; then
+    print_error "OpenCode $OPENCODE_STABLE_VERSION fallback needs a macOS arm64 binary"
+    exit 1
+  fi
+  download_dir="$(mktemp -d "${TMPDIR:-/tmp}/opencode-stable.XXXXXX")"
+  archive="$download_dir/opencode-darwin-arm64.zip"
+  unpacked="$download_dir/unpacked"
+  cleanup_download() { rm -rf "$download_dir"; }
+  trap cleanup_download EXIT
+  curl -fsSL --max-time 120 \
+    "https://github.com/anomalyco/opencode/releases/download/v$OPENCODE_STABLE_VERSION/opencode-darwin-arm64.zip" \
+    -o "$archive"
+  actual_sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
+  [[ "$actual_sha256" == "$OPENCODE_STABLE_SHA256" ]] || {
+    print_error "OpenCode fallback checksum mismatch"
+    exit 1
+  }
+  mkdir -p "$unpacked" "$OPENCODE_STABLE_DIR"
+  unzip -q "$archive" -d "$unpacked"
+  install -m 0755 "$unpacked/opencode" "$OPENCODE_STABLE_BIN"
+  print_success "installed verified OpenCode $OPENCODE_STABLE_VERSION fallback"
+  trap - EXIT
+  cleanup_download
+fi
+ensure_directory "$(dirname "$OPENCODE_WRAPPER_TARGET")" false
+if ! cmp -s "$OPENCODE_WRAPPER_SOURCE" "$OPENCODE_WRAPPER_TARGET"; then
+  backup_file "$OPENCODE_WRAPPER_TARGET"
+  install -m 0755 "$OPENCODE_WRAPPER_SOURCE" "$OPENCODE_WRAPPER_TARGET"
+  print_success "installed idempotent OpenCode version guard"
+else
+  print_info "OpenCode version guard already current"
+fi
 for f in "${POLICY_FILES[@]}"; do
+  # config.json is the universal source plus a deliberate Mac overlay. The
+  # Node step below compares and atomically writes its effective Mac form.
+  [[ "$f" == "config.json" ]] && continue
   if ! cmp -s "$AGENT_RACK_POLICY_SOURCE/$f" "$CONFIG_DIR/$f"; then
     backup_file "$CONFIG_DIR/$f"
     cp "$AGENT_RACK_POLICY_SOURCE/$f" "$CONFIG_DIR/$f"
@@ -132,7 +188,7 @@ for f in "${POLICY_FILES[@]}"; do
     print_info "$f already current"
   fi
 done
-chmod 600 "$CONFIG_JSON"
+[[ ! -f "$CONFIG_JSON" ]] || chmod 600 "$CONFIG_JSON"
 for f in agent-rack.profiles.json agent-rack.security-overlay.json; do
   chmod 600 "$CONFIG_DIR/$f"
 done
@@ -152,6 +208,7 @@ node - "$CONFIG_JSON" "$AGENT_RACK_POLICY_SOURCE/config.json" \
       "$AGENT_RACK_MAX_CONCURRENT_SESSIONS" \
       "$AGENT_RACK_DEFAULT_TIMEOUT_SECONDS" "$AGENT_RACK_ALLOWED_WORKSPACES" <<'NODE'
 const fs = require("fs");
+const path = require("path");
 const [file, canonical, maxConcurrent, timeout, workspacesRaw] = process.argv.slice(2);
 // Empty workspacesRaw = use the canonical list unchanged (universal config:
 // the canonical file carries /workspace for the container and the Mac SMB
@@ -159,8 +216,7 @@ const [file, canonical, maxConcurrent, timeout, workspacesRaw] = process.argv.sl
 const allowedWorkspaces = workspacesRaw.split(":").filter(Boolean).map((p) => p.replace(/^~/, process.env.HOME));
 
 // Start from the canonical config so Mac and container share the identical
-// agent catalogue; the previous local config is preserved as a .backup file by
-// the caller only when the deployed policy file itself changed.
+// agent catalogue. Write only when the resulting bytes differ.
 const value = JSON.parse(fs.readFileSync(canonical, "utf8"));
 
 value.transport = "stdio";
@@ -175,7 +231,22 @@ value.security = {
   defaultTimeoutSeconds: Number(timeout),
 };
 
-fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+const rendered = `${JSON.stringify(value, null, 2)}\n`;
+let current = "";
+try { current = fs.readFileSync(file, "utf8"); } catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+if (current !== rendered) {
+  const dir = path.dirname(file);
+  const staging = fs.mkdtempSync(path.join(dir, ".agent-rack-config-"));
+  const temp = path.join(staging, path.basename(file));
+  try {
+    fs.writeFileSync(temp, rendered, { mode: 0o600 });
+    fs.renameSync(temp, file);
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true });
+  }
+}
 NODE
 print_success "agent-rack config (27 canonical agents + Mac overrides) written to $CONFIG_JSON"
 "$AGENT_RACK_BIN" config-check >/dev/null
@@ -294,10 +365,113 @@ $have_cursor   && register cursor --scope user
 $have_opencode && register opencode
 
 # Stock guidance skills for the harnesses that support skill directories.
-$have_claude   && "$AGENT_RACK_BIN" cp --target claude --scope user   >/dev/null
-$have_codex    && "$AGENT_RACK_BIN" cp --target codex --scope user   >/dev/null
-$have_cursor   && "$AGENT_RACK_BIN" cp --target cursor --scope user  >/dev/null
-$have_opencode && "$AGENT_RACK_BIN" cp --target opencode --scope user >/dev/null
+# `--target codex` is a stock agent-rack trap: version 0.12.1 writes to
+# ~/.codex/skills, but Codex discovers ~/.agents/skills. Pass the shared
+# Agent Skills directory explicitly so the destination matches discovery.
+# Claude skills are restored from the managed Claude source. Do not run the
+# stock copier here: it would overwrite the Claude-adapted frontmatter and
+# reintroduce duplicate OpenCode skill IDs.
+$have_codex    && "$AGENT_RACK_BIN" cp "$HOME/.agents/skills" --scope user >/dev/null
+$have_cursor   && "$AGENT_RACK_BIN" cp --target cursor --scope user >/dev/null
+
+# OpenCode already scans ~/.agents/skills and ~/.claude/skills. Remove only
+# duplicate IDs from its higher-precedence legacy root. Keep OpenCode-only
+# skills. Move duplicates to a recoverable quarantine outside the scan path.
+quarantine_opencode_skill_duplicates() {
+  local opencode_skills="$HOME/.config/opencode/skills"
+  local shared_skills="$HOME/.agents/skills"
+  local quarantine="$HOME/.config/opencode/skills-quarantine"
+  [[ -d "$opencode_skills" && -d "$shared_skills" ]] || return 0
+
+  local duplicate found=0
+  for duplicate in "$opencode_skills"/*; do
+    [[ -d "$duplicate" ]] || continue
+    [[ -f "$duplicate/SKILL.md" ]] || continue
+    local name="$(basename "$duplicate")"
+    [[ -f "$shared_skills/$name/SKILL.md" ]] || continue
+    found=1
+    if [[ -e "$quarantine/$name" ]]; then
+      print_error "OpenCode skill quarantine already contains '$name'; refusing to overwrite it"
+      return 1
+    fi
+  done
+  (( found == 0 )) && return 0
+
+  mkdir -p "$quarantine"
+  for duplicate in "$opencode_skills"/*; do
+    [[ -d "$duplicate" && -f "$duplicate/SKILL.md" ]] || continue
+    local name="$(basename "$duplicate")"
+    [[ -f "$shared_skills/$name/SKILL.md" ]] || continue
+    mv "$duplicate" "$quarantine/$name"
+    print_info "quarantined duplicate OpenCode skill $name"
+  done
+}
+
+quarantine_codex_skill_trap() {
+  local codex_skills="$HOME/.codex/skills"
+  local quarantine="$HOME/.codex/skills-quarantine"
+  [[ -d "$codex_skills" ]] || return 0
+
+  local stale found=0
+  for stale in "$codex_skills"/agent-rack-*; do
+    [[ -d "$stale" ]] || continue
+    found=1
+    local name="$(basename "$stale")"
+    if [[ -e "$quarantine/$name" ]]; then
+      print_error "Codex skill quarantine already contains '$name'; refusing to overwrite it"
+      return 1
+    fi
+  done
+  (( found == 0 )) && return 0
+
+  mkdir -p "$quarantine"
+  for stale in "$codex_skills"/agent-rack-*; do
+    [[ -d "$stale" ]] || continue
+    local name="$(basename "$stale")"
+    mv "$stale" "$quarantine/$name"
+    print_info "quarantined stale Codex skill $name"
+  done
+}
+
+quarantine_nested_skill_entrypoints() {
+  local root nested disabled found=0
+  for root in "$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.config/opencode/skills"; do
+    [[ -d "$root" ]] || continue
+    while IFS= read -r nested; do
+      [[ -n "$nested" ]] || continue
+      found=1
+      disabled="${nested}.disabled"
+      if [[ -e "$disabled" ]]; then
+        print_error "nested skill entrypoint already has a disabled copy: $disabled"
+        return 1
+      fi
+    done < <(find "$root" -mindepth 3 -type f -name SKILL.md -print)
+  done
+  (( found == 0 )) && return 0
+
+  for root in "$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.config/opencode/skills"; do
+    [[ -d "$root" ]] || continue
+    while IFS= read -r nested; do
+      [[ -n "$nested" ]] || continue
+      mv "$nested" "${nested}.disabled"
+      print_info "disabled nested skill entrypoint $nested"
+    done < <(find "$root" -mindepth 3 -type f -name SKILL.md -print)
+  done
+}
+
+sync_cursor_shared_skills() {
+  local source="$HOME/.agents/skills"
+  local target="$HOME/.cursor/skills"
+  [[ -d "$source" && -d "$HOME/.cursor" ]] || return 0
+  mkdir -p "$target"
+  rsync -a "$source/" "$target/"
+}
+
+quarantine_opencode_skill_duplicates
+quarantine_codex_skill_trap
+quarantine_nested_skill_entrypoints
+sync_cursor_shared_skills
+python3 "$ROOT_DIR/utils/validate-harness-sources.py" "$HOME" "$CONFIG_DIR"
 print_success "agent-rack guidance skills ensured"
 
 print_success "agent-rack ($AGENT_RACK_VERSION) ready. Fully quit and reopen desktop apps so they reload MCP configuration."
