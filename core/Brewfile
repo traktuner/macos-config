@@ -47,7 +47,7 @@ cask 'opencode-desktop'
 cask 'claude'
 cask 'chatgpt'
 cask 'codex'
-cask 't3-code'
+cask 't3-code@nightly'
 
 # Productivity
 cask 'keepingyouawake'
@@ -56,7 +56,6 @@ cask 'visual-studio-code'
 cask 'network-share-mounter'
 cask 'imazing-profile-editor'
 cask 'libreoffice'
-cask 'betterdisplay'
 cask 'royal-tsx'
 cask 'jdownloader2-safari'
 
@@ -89,6 +88,6 @@ mas 'Apple Configurator', id: 1037126344
 mas '1Blocker', id: 1365531024
 mas 'Proton Pass for Safari', id: 6502835663
 mas 'Noir', id: 1592917505
-mas 'Final Cut Pro', id: 424389933
+#mas 'Final Cut Pro', id: 424389933
 mas 'Xcode', id: 497799835
 mas 'ComputerMouseJiggler', id: 6499493055
