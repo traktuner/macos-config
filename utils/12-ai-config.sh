@@ -27,7 +27,7 @@ fi
 #            bash utils/12-ai-config.sh save
 #
 # Expected layout on the share (SMB_AI_PATH):
-#   <share>/claude/     -> ~/.claude/              (CLAUDE.md, settings.json, agents, commands, skills)
+#   <share>/claude/     -> ~/.claude/              (CLAUDE.md, settings.json, skills)
 #   <share>/claude-desktop/ -> ~/Library/Application Support/Claude/
 #   <share>/codex/      -> ~/.codex/               (config.toml, AGENTS.md, hooks.json, rules, auth.json)
 #   <share>/agents/     -> ~/.agents/              (shared Agent Skills for Codex/OpenCode/Cursor)
@@ -61,7 +61,7 @@ SMB_TIMEOUT="${SMB_TIMEOUT:-30}"
 # Claude keeps its adapted variants in claude/skills; Codex/OpenCode/Cursor use
 # the harness-neutral variants in agents/skills. Do not put a second copy in
 # ~/.config/opencode/skills because OpenCode scans all three global roots.
-CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(CLAUDE.md settings.json agents commands skills)
+CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(CLAUDE.md settings.json skills)
 CLAUDE_DESKTOP_TARGET="$HOME/Library/Application Support/Claude"; CLAUDE_DESKTOP_ITEMS=(claude_desktop_config.json)
 CODEX_TARGET="$HOME/.codex";             CODEX_ITEMS=(config.toml AGENTS.md hooks.json rules auth.json)
 AGENTS_TARGET="$HOME/.agents";           AGENTS_ITEMS=(skills)
@@ -71,7 +71,7 @@ OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc AGENTS.
 # from the live infra checkout on the new machine; the share copy is the
 # fallback when no infra checkout exists yet. runtime/ holds per-machine SSE
 # auth tokens and session state and must not be restored.
-AGENT_RACK_TARGET="$HOME/.config/agent-rack"; AGENT_RACK_ITEMS=(config.json agent-rack.profiles.json agent-rack.security-overlay.json DELEGATION.md WORKER-CONTRACT.txt MODEL-CATALOG.json RESEARCH.md SOURCES.md ROOT-BLOCK.md agent-rack-join-patch.mjs)
+AGENT_RACK_TARGET="$HOME/.config/agent-rack"; AGENT_RACK_ITEMS=(config.json agent-rack.profiles.json agent-rack.security-overlay.json DELEGATION.md WORKER-CONTRACT.txt MODEL-CATALOG.json RESEARCH.md SOURCES.md ROOT-BLOCK.md agent-rack-join-patch.mjs agent-rack-harness-limits.mjs)
 
 # Files that must be private (chmod 600 after a pull)
 SENSITIVE_BASENAMES="auth.json opencode.jsonc settings.json config.toml claude_desktop_config.json config.json"

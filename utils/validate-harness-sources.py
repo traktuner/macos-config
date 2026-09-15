@@ -15,6 +15,29 @@ END = "<!-- t3-docker:agent-rack-policy:end -->"
 SKILL_NAME = re.compile(r"^name:\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*$", re.MULTILINE)
 DESCRIPTION = re.compile(r"^description:\s*.+$", re.MULTILINE)
 
+LEGACY_CLAUDE_AGENT_NAMES = {
+    "fable-architect.md",
+    "lumo-basic-researcher.md",
+    "lumo-plus-implementer.md",
+    "opus-critical-reviewer.md",
+    "sonnet-sanity-checker.md",
+}
+LEGACY_CLAUDE_COMMAND_NAMES = {
+    "codex-impl.md",
+    "codex-review.md",
+    "critical-review.md",
+    "final-review.md",
+    "lumo-impl.md",
+    "lumo-research.md",
+    "lumo-review.md",
+    "preflight.md",
+    "sanity-check.md",
+}
+LEGACY_CLAUDE_ROUTING_MARKERS = (
+    "The user's primary coding harness is now OpenCode + Lumo Max",
+    "Use parallel Claude subagents",
+    "The tiered subagents (`lumo-basic-researcher`",
+)
 
 def frontmatter(path: Path) -> str:
     parts = path.read_text(encoding="utf-8").split("---", 2)
@@ -92,6 +115,37 @@ def validate(home: Path, rack: Path) -> list[str]:
             errors.append("harness policy blocks differ")
     except (OSError, ValueError) as error:
         errors.append(str(error))
+
+    claude_rules = home / ".claude/CLAUDE.md"
+    try:
+        claude_text = claude_rules.read_text(encoding="utf-8")
+        for marker in LEGACY_CLAUDE_ROUTING_MARKERS:
+            if marker in claude_text:
+                errors.append(f"{claude_rules}: contains legacy native Claude routing")
+                break
+    except OSError as error:
+        errors.append(str(error))
+
+    claude_agents = home / ".claude/agents"
+    active_legacy_agents = sorted(
+        path.name for path in claude_agents.glob("*.md")
+        if path.name in LEGACY_CLAUDE_AGENT_NAMES
+    )
+    if active_legacy_agents:
+        errors.append(
+            "Claude has legacy native tier agents: " + ", ".join(active_legacy_agents)
+        )
+
+    claude_commands = home / ".claude/commands"
+    active_legacy_commands = sorted(
+        path.name for path in claude_commands.glob("*.md")
+        if path.name in LEGACY_CLAUDE_COMMAND_NAMES
+    )
+    if active_legacy_commands:
+        errors.append(
+            "Claude has legacy native routing commands: "
+            + ", ".join(active_legacy_commands)
+        )
 
     profiles_path = rack / "agent-rack.profiles.json"
     try:

@@ -28,13 +28,21 @@ fi
 
 if [[ "$MODE" == "backup" ]]; then
   BACKUP_ROOT="$DESTINATION/$(scutil --get ComputerName 2>/dev/null || hostname -s)-$(date +%Y%m%d-%H%M%S)"
+elif [[ "$MODE" == "resume" ]]; then
+  BACKUP_ROOT="${2:-}"
+  if [[ -z "$BACKUP_ROOT" ]]; then
+    echo "Backup directory required for resume." >&2
+    exit 2
+  fi
+  # A bare name refers to a backup directory below the configured destination.
+  [[ "$BACKUP_ROOT" == /* ]] || BACKUP_ROOT="$DESTINATION/$BACKUP_ROOT"
 elif [[ "$MODE" == "restore" ]]; then
   BACKUP_ROOT="${2:-}"
   if [[ -z "$BACKUP_ROOT" ]]; then
     BACKUP_ROOT="$(find "$DESTINATION" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort | tail -1)"
   fi
 else
-  echo "Usage: $0 [backup] [destination] | $0 restore [backup-directory]" >&2
+  echo "Usage: $0 [backup] [destination] | $0 resume <backup-directory> | $0 restore [backup-directory]" >&2
   exit 2
 fi
 
@@ -45,6 +53,16 @@ if [[ "$MODE" == "backup" ]]; then
   fi
   mkdir -p "$BACKUP_ROOT"
   echo "Backup target: $BACKUP_ROOT"
+elif [[ "$MODE" == "resume" ]]; then
+  if [[ ! -d "$DESTINATION" ]]; then
+    echo "Backup destination is not mounted: $DESTINATION" >&2
+    exit 1
+  fi
+  if [[ ! -d "$BACKUP_ROOT" ]]; then
+    echo "Backup directory not found: $BACKUP_ROOT" >&2
+    exit 1
+  fi
+  echo "Resuming backup: $BACKUP_ROOT"
 else
   if [[ ! -d "$BACKUP_ROOT" ]]; then
     echo "Backup directory not found: ${BACKUP_ROOT:-<none>}" >&2
@@ -55,15 +73,29 @@ else
   [[ "$answer" == "y" || "$answer" == "Y" ]] || { echo "Restore cancelled."; exit 0; }
 fi
 
+progress_marker() {
+  local scope="$1"
+  local relative="$2"
+  printf '%s/.backup-state/%s/%s.complete' "$BACKUP_ROOT" "$scope" "$relative"
+}
+
 copy_path() {
   local source="$1"
   local relative="$2"
+  local marker
   [[ -e "$source" ]] || { echo "Skip missing: $source"; return 0; }
+  marker="$(progress_marker user "$relative")"
+  if [[ "$MODE" == "resume" && -f "$marker" ]]; then
+    echo "Skip completed: $source"
+    return 0
+  fi
   mkdir -p "$BACKUP_ROOT/$(dirname "$relative")"
   echo "Copying: $source"
   rsync -a --human-readable --info=progress2 --partial \
     --exclude='Caches/' --exclude='cache/' --exclude='DerivedData/' \
     "$source" "$BACKUP_ROOT/$relative"
+  mkdir -p "$(dirname "$marker")"
+  touch "$marker"
 }
 
 restore_path() {
@@ -84,12 +116,20 @@ restore_path() {
 copy_system_path() {
   local source="$1"
   local relative="$2"
+  local marker
   [[ -e "$source" ]] || { echo "Skip missing: $source"; return 0; }
+  marker="$(progress_marker system "$relative")"
+  if [[ "$MODE" == "resume" && -f "$marker" ]]; then
+    echo "Skip completed system path: $source"
+    return 0
+  fi
   mkdir -p "$BACKUP_ROOT/System/$(dirname "$relative")"
   echo "Copying system path: $source"
   sudo rsync -a --human-readable --info=progress2 --partial \
     --exclude='Caches/' --exclude='cache/' --exclude='DerivedData/' \
     "$source" "$BACKUP_ROOT/System/$relative"
+  mkdir -p "$(dirname "$marker")"
+  touch "$marker"
 }
 
 restore_system_path() {

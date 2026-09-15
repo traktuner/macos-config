@@ -6,7 +6,12 @@ import sys
 from pathlib import Path
 
 
-REQUIRED_WORKSPACES = {"/workspace", str(Path.home() / "Netzlaufwerke/developer")}
+REQUIRED_WORKSPACES = {
+    "/workspace",
+    "/data/t3/worktrees",
+    str(Path.home() / "Netzlaufwerke/developer"),
+    str(Path.home() / ".t3/worktrees"),
+}
 CANONICAL_MCP = "agent-rack"
 INVALID_MCP = "agent_rack"
 

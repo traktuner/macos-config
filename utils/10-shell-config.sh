@@ -18,22 +18,30 @@ if [[ -f "$ZSHRC" ]]; then
 fi
 
 cat > "$ZSHRC" <<EOF
-# -- Completions (must come before compinit)
+# -- Completions (cache rebuilt at most once a day)
 FPATH=${BREW_PREFIX}/share/zsh-completions:\$FPATH
 autoload -Uz compinit
-compinit
-
-# -- Syntax Highlighting & Autosuggestions (skip in Warp — has these built-in)
-if [[ "\$TERM_PROGRAM" != "WarpTerminal" ]]; then
-  [[ -f ${BREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \\
-    source ${BREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-  [[ -f ${BREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \\
-    source ${BREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-  ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+if [[ -f "\$HOME/.zcompdump" && "\$(date +%F)" == "\$(date -r "\$HOME/.zcompdump" +%F)" ]]; then
+  compinit -C
+else
+  compinit
 fi
 
-# -- Starship prompt
-eval "\$(starship init zsh)"
+# -- History
+HISTFILE="\$HOME/.zsh_history"
+HISTSIZE=100000
+SAVEHIST=100000
+setopt SHARE_HISTORY HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS
+
+# -- Syntax Highlighting & Autosuggestions
+[[ -f ${BREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \\
+  source ${BREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+[[ -f ${BREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \\
+  source ${BREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+
+# -- Starship prompt (guard: only when installed)
+command -v starship >/dev/null 2>&1 && eval "\$(starship init zsh)"
 EOF
 
 print_success ".zshrc configured"

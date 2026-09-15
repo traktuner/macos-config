@@ -52,6 +52,7 @@ macos-config/
 │   ├── 13-onyx-mcp.sh           # Configure authenticated Onyx MCP locally
 │   ├── 14-xcode-worker.sh       # T3-reachable, restricted XcodeBuildMCP worker
 │   ├── 15-agent-rack.sh         # Pinned stock agent-rack MCP for local AI harnesses
+│   ├── 16-terminal.sh           # Terminal.app profile import + consistent startup/default profile
 │   ├── config.properties        # General configuration (SMB, wallpaper, etc.)
 │   └── deploy.properties        # CrashPlan deployment config (copied to CrashPlan)
 └── renovate.json             # Automated dependency updates
@@ -111,6 +112,14 @@ docker exec -it t3code t3-xcode-auth <mac-user>@<mac-host>
 Do not store the Mac workspace path, T3 host, SSH private key, or credentials in
 this repository.
 
+### Shell config
+
+`utils/10-shell-config.sh` regenerates `~/.zshrc` wholesale (`cat >`). A
+previous file is backed up next to it first, but any manual additions (extra
+PATH entries, tool blocks) are **not** carried over. Machines with custom
+blocks in `~/.zshrc` should be migrated by hand, not by re-running the
+bootstrap script.
+
 ### agent-rack MCP
 
 `utils/15-agent-rack.sh` installs the pinned stock
@@ -150,6 +159,16 @@ prompt after updates; a version check does not prove model or tool operation.
 Run focused restore checks with `python3 -B -m unittest discover -s tests`.
 These checks use temporary fixtures; a full macOS reinstall is a separate
 acceptance test.
+
+### Terminal.app
+
+`utils/16-terminal.sh` imports the versioned `Clear Dark` profile from
+`assets/terminal/Clear Dark.terminal` into Terminal.app and sets both
+`Startup Window Settings` and `Default Window Settings` to that profile, so
+new windows and tabs always use the same look. The script is idempotent:
+re-running it re-imports the profile and re-applies both defaults. To change
+the profile, edit it in Terminal, export it (Settings > Profiles > ... >
+Export), and replace the file in `assets/terminal/`.
 
 ## Security
 

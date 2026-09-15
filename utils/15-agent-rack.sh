@@ -39,7 +39,7 @@ AGENT_RACK_MAX_CONCURRENT_SESSIONS="${AGENT_RACK_MAX_CONCURRENT_SESSIONS:-4}"
 AGENT_RACK_DEFAULT_TIMEOUT_SECONDS="${AGENT_RACK_DEFAULT_TIMEOUT_SECONDS:-43200}"
 # Workspaces the rack may operate in (stock security.allowedWorkspaces).
 # Default: empty = take the canonical list from the policy config unchanged
-# (universal config; it carries /workspace and the Mac SMB mount path).
+# (universal config; it carries container and Mac repository/worktree paths).
 # Colon-separated override for environment-specific additions.
 AGENT_RACK_ALLOWED_WORKSPACES="${AGENT_RACK_ALLOWED_WORKSPACES:-}"
 # Canonical policy source (infra checkout). A complete restored agent-rack
@@ -58,6 +58,7 @@ POLICY_FILES=(
   SOURCES.md
   ROOT-BLOCK.md
   agent-rack-join-patch.mjs
+  agent-rack-harness-limits.mjs
 )
 
 CONFIG_DIR="$HOME/.config/agent-rack"
@@ -211,8 +212,8 @@ const fs = require("fs");
 const path = require("path");
 const [file, canonical, maxConcurrent, timeout, workspacesRaw] = process.argv.slice(2);
 // Empty workspacesRaw = use the canonical list unchanged (universal config:
-// the canonical file carries /workspace for the container and the Mac SMB
-// mount /Users/thomas/Netzlaufwerke/developer, both valid wherever they exist).
+// the canonical file carries the container and Mac repository/worktree roots,
+// including /data/t3/worktrees and /Users/thomas/.t3/worktrees).
 const allowedWorkspaces = workspacesRaw.split(":").filter(Boolean).map((p) => p.replace(/^~/, process.env.HOME));
 
 // Start from the canonical config so Mac and container share the identical
@@ -282,6 +283,23 @@ LEGACY = re.compile(
     % (re.escape(LEGACY_START), re.escape(LEGACY_END)),
     re.DOTALL,
 )
+CLAUDE_NATIVE_ROUTING = re.compile(
+    r"(?ms)^## Execution model[ \t]*\n.*?(?=^## Project traps\b)"
+)
+CLAUDE_NATIVE_ROUTING_SENTINELS = (
+    "The user's primary coding harness is now OpenCode + Lumo Max",
+    "`opus-critical-reviewer`",
+    "Use parallel Claude subagents",
+)
+CLAUDE_NATIVE_BUNDLE = re.compile(
+    r"(?ms)^## Available local bundle[ \t]*\n.*?(?=^Lead final responses)"
+)
+CLAUDE_NATIVE_BUNDLE_SENTINELS = (
+    "## Available local bundle",
+    "The tiered subagents",
+    "`opus-critical-reviewer`",
+    "`/preflight`",
+)
 
 
 def reconcile(path: Path, body: str) -> bool:
@@ -292,6 +310,14 @@ def reconcile(path: Path, body: str) -> bool:
         raise RuntimeError("malformed legacy block in %s" % path)
     stripped = BLOCK.sub("", before)
     stripped = LEGACY.sub("", stripped).rstrip()
+    if path.name == "CLAUDE.md" and all(
+        sentinel in stripped for sentinel in CLAUDE_NATIVE_ROUTING_SENTINELS
+    ):
+        stripped = CLAUDE_NATIVE_ROUTING.sub("", stripped, count=1).rstrip()
+    if path.name == "CLAUDE.md" and all(
+        sentinel in stripped for sentinel in CLAUDE_NATIVE_BUNDLE_SENTINELS
+    ):
+        stripped = CLAUDE_NATIVE_BUNDLE.sub("", stripped, count=1).rstrip()
     block = "%s\n%s\n%s" % (START, body.rstrip(), END)
     after = "%s\n\n%s\n" % (stripped, block) if stripped else "%s\n" % block
     if after == before:
@@ -335,6 +361,60 @@ sys.exit(1 if failed else 0)
 PYEOF
 print_success "agent-rack root policy block reconciled into local harness files"
 
+# Claude's legacy tier agents bypass the fixed agent-rack catalogue through
+# Claude's built-in Agent tool. Keep a recoverable copy outside discovery.
+quarantine_claude_native_tier_agents() {
+  local source="$HOME/.claude/agents"
+  local quarantine="$HOME/.claude/agents-quarantine/agent-rack-native-tier"
+  local name destination
+  local names=(
+    lumo-basic-researcher.md
+    lumo-plus-implementer.md
+    sonnet-sanity-checker.md
+    opus-critical-reviewer.md
+    fable-architect.md
+  )
+  local command_source="$HOME/.claude/commands"
+  local command_quarantine="$HOME/.claude/commands-quarantine/agent-rack-native-tier"
+  local command_names=(
+    codex-impl.md
+    codex-review.md
+    critical-review.md
+    final-review.md
+    lumo-impl.md
+    lumo-research.md
+    lumo-review.md
+    preflight.md
+    sanity-check.md
+  )
+  if [[ -d "$source" ]]; then
+    for name in "${names[@]}"; do
+      [[ -f "$source/$name" ]] || continue
+      mkdir -p "$quarantine"
+      destination="$quarantine/$name"
+      if [[ -e "$destination" ]]; then
+        destination="$quarantine/${name%.md}.restored.$(date +%Y%m%d_%H%M%S).md"
+      fi
+      mv "$source/$name" "$destination"
+      print_info "quarantined legacy native Claude agent $name"
+    done
+  fi
+
+  [[ -d "$command_source" ]] || return 0
+  for name in "${command_names[@]}"; do
+    [[ -f "$command_source/$name" ]] || continue
+    mkdir -p "$command_quarantine"
+    destination="$command_quarantine/$name"
+    if [[ -e "$destination" ]]; then
+      destination="$command_quarantine/${name%.md}.restored.$(date +%Y%m%d_%H%M%S).md"
+    fi
+    mv "$command_source/$name" "$destination"
+    print_info "quarantined legacy Claude routing command $name"
+  done
+}
+
+quarantine_claude_native_tier_agents
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) Register with every installed harness via stock, idempotent commands.
 #    agent-rack detects the binaries and skips what is not installed.
@@ -360,9 +440,23 @@ have_cursor=false; [[ -d "$HOME/.cursor" ]] && have_cursor=true
 have_opencode=false; command_exists opencode && have_opencode=true
 
 $have_claude   && register claude --scope user
-$have_codex    && register codex
+# Stock install rewrites existing Codex/OpenCode entries on every run (dropping
+# the harness limits below), so register only when the entry is missing.
+$have_codex    && { codex mcp get agent-rack >/dev/null 2>&1 || register codex; }
 $have_cursor   && register cursor --scope user
-$have_opencode && register opencode
+# Capture first: `| grep -q` makes opencode die of SIGPIPE, and pipefail then
+# reports a missing entry.
+$have_opencode && { [[ "$(opencode mcp list 2>/dev/null)" == *agent-rack* ]] || register opencode; }
+
+# Canonical harness limits (same script as the T3 container): 3-hour
+# agent-rack MCP tool-call timeout and no native subagent tools.
+node "$CONFIG_DIR/agent-rack-harness-limits.mjs" \
+  --codex-config "$HOME/.codex/config.toml" \
+  --claude-config "$HOME/.claude.json" \
+  --claude-settings "$HOME/.claude/settings.json" \
+  --opencode-config "$HOME/.config/opencode/opencode.jsonc" \
+  --opencode-config "$HOME/.config/opencode/opencode.json"
+print_success "agent-rack harness limits reconciled"
 
 # Stock guidance skills for the harnesses that support skill directories.
 # `--target codex` is a stock agent-rack trap: version 0.12.1 writes to
