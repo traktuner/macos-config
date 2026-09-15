@@ -37,3 +37,4 @@ id_ed25519.pub
 # Shell history
 .bash_history
 .zsh_history
+__pycache__/
