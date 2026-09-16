@@ -71,7 +71,7 @@ OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc AGENTS.
 # from the live infra checkout on the new machine; the share copy is the
 # fallback when no infra checkout exists yet. runtime/ holds per-machine SSE
 # auth tokens and session state and must not be restored.
-AGENT_RACK_TARGET="$HOME/.config/agent-rack"; AGENT_RACK_ITEMS=(config.json agent-rack.profiles.json agent-rack.security-overlay.json DELEGATION.md WORKER-CONTRACT.txt MODEL-CATALOG.json RESEARCH.md SOURCES.md ROOT-BLOCK.md agent-rack-join-patch.mjs agent-rack-harness-limits.mjs)
+AGENT_RACK_TARGET="$HOME/.config/agent-rack"; AGENT_RACK_ITEMS=(config.json agent-rack.profiles.json agent-rack.security-overlay.json DELEGATION.md WORKER-CONTRACT.txt MODEL-CATALOG.json RESEARCH.md SOURCES.md ROOT-BLOCK.md agent-rack-join-patch.mjs agent-rack-harness-limits.mjs agent-rack-reliability-patch.mjs agent-rack-worker-capabilities.mjs agent-rack-review-validation.mjs)
 
 # Files that must be private (chmod 600 after a pull)
 SENSITIVE_BASENAMES="auth.json opencode.jsonc settings.json config.toml claude_desktop_config.json config.json"

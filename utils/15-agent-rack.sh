@@ -59,6 +59,9 @@ POLICY_FILES=(
   ROOT-BLOCK.md
   agent-rack-join-patch.mjs
   agent-rack-harness-limits.mjs
+  agent-rack-reliability-patch.mjs
+  agent-rack-worker-capabilities.mjs
+  agent-rack-review-validation.mjs
 )
 
 CONFIG_DIR="$HOME/.config/agent-rack"
@@ -199,6 +202,8 @@ done
 # wait for all workers without an external watcher or an impossible callback.
 node "$CONFIG_DIR/agent-rack-join-patch.mjs"
 print_success "agent-rack synchronous parallel join patch active"
+node "$CONFIG_DIR/agent-rack-reliability-patch.mjs"
+print_success "agent-rack worker capabilities and review validation active"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3) Environment overlays on the live user config (~/.config/agent-rack/config.json)

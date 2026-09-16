@@ -54,3 +54,5 @@
   without the 3-hour timeout and with a versioned Cellar node path. Capture the output first and
   register only missing entries; `agent-rack-harness-limits.mjs` then re-applies the limits
   (`utils/15-agent-rack.sh`).
+
+- Keep all three reliability assets in both agent-rack install and restore lists, and apply the patch before starting a new MCP server. Existing servers retain loaded modules. Resolve OpenCode workers through the existing `.local/bin/opencode` version guard: a parent PATH selected broken 1.18.30 even though 1.18.20 was installed (`utils/15-agent-rack.sh`, `utils/12-ai-config.sh`, canonical `agent-rack-worker-capabilities.mjs`).
