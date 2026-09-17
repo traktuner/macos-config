@@ -56,3 +56,7 @@
   (`utils/15-agent-rack.sh`).
 
 - Keep all three reliability assets in both agent-rack install and restore lists, and apply the patch before starting a new MCP server. Existing servers retain loaded modules. Resolve OpenCode workers through the existing `.local/bin/opencode` version guard: a parent PATH selected broken 1.18.30 even though 1.18.20 was installed (`utils/15-agent-rack.sh`, `utils/12-ai-config.sh`, canonical `agent-rack-worker-capabilities.mjs`).
+
+- **Resolve the `infra-harness/current` symlink before verifying a cached release.** The bundle verifier rejects symlink ancestors by design. Verify the physical immutable release directory before reading its runtime lock (`utils/15-agent-rack.sh`).
+
+- **Do not trust a cached bundle digest from its manifest alone.** `current` must resolve exactly below `~/.local/share/infra-harness/releases/<64-hex-digest>`, and that directory name is the verifier expectation; otherwise a copied manifest can select an arbitrary release (`utils/15-agent-rack.sh`).

@@ -7,6 +7,9 @@ set -euo pipefail
 # Load shared functions
 source "$ROOT_DIR/core/functions.sh"
 
+# Preserve the per-run Infra source through config.properties and child scripts.
+INFRA_HARNESS_SOURCE_OVERRIDE="${INFRA_HARNESS_SOURCE:-}"
+
 # Load configuration
 CONFIG_FILE="$ROOT_DIR/utils/config.properties"
 if [[ -f "$CONFIG_FILE" ]]; then
@@ -17,30 +20,26 @@ else
   exit 1
 fi
 
+if [[ -n "$INFRA_HARNESS_SOURCE_OVERRIDE" ]]; then
+  export INFRA_HARNESS_SOURCE="$INFRA_HARNESS_SOURCE_OVERRIDE"
+fi
+
 # ─────────────────────────────────────────────────────────────────────────────
-# AI tool configs (Claude Code, Codex, OpenCode) from the SMB tresor.
-# The configs live on the private share (like the SSH keys), NEVER in this repo.
+# Owner-private AI state for Claude, Codex, and OpenCode lives on the SMB
+# tresor. Infra owns all shared harness policy, skills, plugins, and profiles.
 #
 #   Mode:  pull  (default) copy configs FROM the share INTO your machine
 #          save            copy your current local configs UP to the share
 #          Run from the bootstrap menu = pull. To seed/update the share:
 #            bash utils/12-ai-config.sh save
 #
-# Expected layout on the share (SMB_AI_PATH):
-#   <share>/claude/     -> ~/.claude/              (CLAUDE.md, settings.json, skills)
+# Expected owner-private layout on the share (SMB_AI_PATH):
+#   <share>/claude/     -> ~/.claude/              (settings.json)
 #   <share>/claude-desktop/ -> ~/Library/Application Support/Claude/
-#   <share>/codex/      -> ~/.codex/               (config.toml, AGENTS.md, hooks.json, rules, auth.json)
-#   <share>/agents/     -> ~/.agents/              (shared Agent Skills for Codex/OpenCode/Cursor)
-#   <share>/opencode/   -> ~/.config/opencode/     (policy, agents, plugins, tests, tools/watchers)
-#                                                  plugins include the local Lumo usage estimator
-#                                                  that restores proactive compaction when Lumo omits usage
-#   <share>/agent-rack/ -> ~/.config/agent-rack/   (canonical 27-agent config
-#                                                  plus the shared policy set
-#                                                  from the infra repository;
-#                                                  runtime/ holds SSE auth
-#                                                  tokens and is deliberately
-#                                                  NOT synced)
-# Only the curated items below are synced; runtime state/caches/history are ignored.
+#   <share>/codex/      -> ~/.codex/               (config.toml, hooks.json, auth.json)
+#   <share>/opencode/   -> ~/.config/opencode/     (opencode.jsonc)
+# Infra owns rules, skills, plugins, agent-rack configuration, profiles, code,
+# and lockfiles. This script never restores or saves them.
 # ─────────────────────────────────────────────────────────────────────────────
 
 MODE="${1:-pull}"
@@ -49,29 +48,24 @@ if [[ "$MODE" != "pull" && "$MODE" != "save" ]]; then
   exit 1
 fi
 
+# Check the authoritative package before this script mounts the share or
+# modifies owner-local state. The check mode performs no installation.
+if [[ "$MODE" == "pull" ]]; then
+  bash "$ROOT_DIR/utils/15-agent-rack.sh" --check-source
+fi
+
 # Configuration (overridable via config.properties)
 SMB_SERVER="${SMB_SERVER:-172.16.10.200}"
 SMB_AI_PATH="${SMB_AI_PATH:-tom/tresor/ai-config}"
 MOUNT_POINT="${SMB_AI_MOUNT_POINT:-/Volumes/ai-config}"
 SMB_TIMEOUT="${SMB_TIMEOUT:-30}"
 
-# Curated items per tool (files and directories). Secrets (auth.json, the real
-# opencode.jsonc with its apiKey) live only on the trusted share, never in git.
-# Personal Claude skills and shared Agent Skills have separate source trees.
-# Claude keeps its adapted variants in claude/skills; Codex/OpenCode/Cursor use
-# the harness-neutral variants in agents/skills. Do not put a second copy in
-# ~/.config/opencode/skills because OpenCode scans all three global roots.
-CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(CLAUDE.md settings.json skills)
+# Curated owner-private state only. These files can contain credentials and
+# keep private permissions after a pull. Do not add managed Infra state here.
+CLAUDE_TARGET="$HOME/.claude";           CLAUDE_ITEMS=(settings.json)
 CLAUDE_DESKTOP_TARGET="$HOME/Library/Application Support/Claude"; CLAUDE_DESKTOP_ITEMS=(claude_desktop_config.json)
-CODEX_TARGET="$HOME/.codex";             CODEX_ITEMS=(config.toml AGENTS.md hooks.json rules auth.json)
-AGENTS_TARGET="$HOME/.agents";           AGENTS_ITEMS=(skills)
-OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc AGENTS.md package.json package-lock.json doctor.sh rules agents commands tools plugins tests)
-# agent-rack: the canonical 27-agent config plus the shared policy set from
-# the infra repository (agent-rack-policies). 15-agent-rack.sh redeploys these
-# from the live infra checkout on the new machine; the share copy is the
-# fallback when no infra checkout exists yet. runtime/ holds per-machine SSE
-# auth tokens and session state and must not be restored.
-AGENT_RACK_TARGET="$HOME/.config/agent-rack"; AGENT_RACK_ITEMS=(config.json agent-rack.profiles.json agent-rack.security-overlay.json DELEGATION.md WORKER-CONTRACT.txt MODEL-CATALOG.json RESEARCH.md SOURCES.md ROOT-BLOCK.md agent-rack-join-patch.mjs agent-rack-harness-limits.mjs agent-rack-reliability-patch.mjs agent-rack-worker-capabilities.mjs agent-rack-review-validation.mjs)
+CODEX_TARGET="$HOME/.codex";             CODEX_ITEMS=(config.toml hooks.json auth.json)
+OPENCODE_TARGET="$HOME/.config/opencode"; OPENCODE_ITEMS=(opencode.jsonc)
 
 # Files that must be private (chmod 600 after a pull)
 SENSITIVE_BASENAMES="auth.json opencode.jsonc settings.json config.toml claude_desktop_config.json config.json"
@@ -82,7 +76,10 @@ MOUNTED=false
 # Credentials, stale-share unmount, mount and cleanup come from the shared
 # SMB helpers in core/functions.sh (same mechanism as 04-ssh-keys.sh).
 # ─────────────────────────────────────────────────────────────────────────────
-trap smb_cleanup EXIT INT TERM HUP
+trap 'finish_private_pull $?' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -91,20 +88,20 @@ backup_target() { # $1 = path to back up if it exists
   local p="$1"
   if [[ -e "$p" ]]; then
     local b="${p}.backup.$(date +%Y%m%d_%H%M%S)"
-    cp -R "$p" "$b"
+    cp -R "$p" "$b" || return 1
     print_info "Backed up $(basename "$p") -> $(basename "$b")"
   fi
 }
 
 copy_item() { # $1 = src (file/dir), $2 = dst (full path incl. name)
   if [[ -d "$1" ]]; then
-    mkdir -p "$2"
+    mkdir -p "$2" || return 1
     # The whole curated item is backed up before synchronization. Remove
     # obsolete entries so a later restore cannot resurrect retired code.
-    rsync -a --delete "$1/" "$2/"
+    rsync -a --delete "$1/" "$2/" || return 1
   else
-    mkdir -p "$(dirname "$2")"
-    cp "$1" "$2"
+    mkdir -p "$(dirname "$2")" || return 1
+    cp "$1" "$2" || return 1
   fi
 }
 
@@ -135,24 +132,25 @@ sync_tool() {
       print_info "No '${sub}' folder on the share — skipping."
       return 0
     fi
-    ensure_directory "$target" false
+    ensure_directory "$target" false || return 1
     for item in "${items[@]}"; do
       local src="${share_dir}/${item}" dst="${target}/${item}"
       [[ -e "$src" ]] || continue
+      [[ ! -L "$src" && ! -L "$dst" ]] || { print_error "Refusing symbolic-link private item: ${sub}/${item}"; return 1; }
       if ! needs_sync "$src" "$dst"; then
-        if [[ -f "$dst" ]] && is_sensitive "$item"; then chmod 600 "$dst"; fi
+        if [[ -f "$dst" ]] && is_sensitive "$item"; then chmod 600 "$dst" || return 1; fi
         print_info "${sub}/${item} already current"
         continue
       fi
-      backup_target "$dst"
-      copy_item "$src" "$dst"
-      if [[ -f "$dst" ]] && is_sensitive "$item"; then chmod 600 "$dst"; fi
+      backup_target "$dst" || return 1
+      copy_item "$src" "$dst" || return 1
+      if [[ -f "$dst" ]] && is_sensitive "$item"; then chmod 600 "$dst" || return 1; fi
       print_success "pulled ${sub}/${item}"
       count=$((count + 1))
     done
     print_info "${sub}: ${count} item(s) copied into ${target}"
   else # save
-    ensure_directory "$share_dir" false
+    ensure_directory "$share_dir" false || return 1
     for item in "${items[@]}"; do
       local src="${target}/${item}" dst="${share_dir}/${item}"
       [[ -e "$src" ]] || continue
@@ -160,8 +158,8 @@ sync_tool() {
         print_info "${sub}/${item} already current on share"
         continue
       fi
-      backup_target "$dst"
-      copy_item "$src" "$dst"
+      backup_target "$dst" || return 1
+      copy_item "$src" "$dst" || return 1
       print_success "saved ${sub}/${item} -> share"
       count=$((count + 1))
     done
@@ -169,12 +167,86 @@ sync_tool() {
   fi
 }
 
+# The private pull has six independently curated files. Keep an owner-only
+# snapshot until the shared harness reconciliation succeeds, so a failed final
+# apply cannot leave this set half restored. Existing backup_target snapshots
+# remain user recovery copies; this directory exists only for this transaction.
+PRIVATE_PULL_ROLLBACK=""
+snapshot_private_pull() {
+  PRIVATE_PULL_ROLLBACK="$(mktemp -d "${TMPDIR:-/tmp}/ai-config-pull.XXXXXX")" || return 1
+  chmod 700 "$PRIVATE_PULL_ROLLBACK" || return 1
+  local index=0 target item path
+  for target in "$CLAUDE_TARGET" "$CLAUDE_DESKTOP_TARGET" "$CODEX_TARGET" "$OPENCODE_TARGET"; do
+    local -a entries=()
+    case "$target" in
+      "$CLAUDE_TARGET") entries=("${CLAUDE_ITEMS[@]}") ;;
+      "$CLAUDE_DESKTOP_TARGET") entries=("${CLAUDE_DESKTOP_ITEMS[@]}") ;;
+      "$CODEX_TARGET") entries=("${CODEX_ITEMS[@]}") ;;
+      "$OPENCODE_TARGET") entries=("${OPENCODE_ITEMS[@]}") ;;
+    esac
+    for item in "${entries[@]}"; do
+      path="$target/$item"
+      local ancestor="$target"
+      while [[ "$ancestor" != / ]]; do
+        [[ ! -L "$ancestor" ]] || { print_error "Refusing symbolic-link private parent: $ancestor"; return 1; }
+        ancestor="$(dirname "$ancestor")"
+      done
+      printf '%s\n' "$path" >> "$PRIVATE_PULL_ROLLBACK/paths"
+      if [[ -L "$path" ]]; then print_error "Refusing symbolic-link private target: $path"; return 1; fi
+      if [[ -e "$path" ]]; then
+        [[ -f "$path" ]] || { print_error "Refusing non-file private target: $path"; return 1; }
+        printf 'present\n' > "$PRIVATE_PULL_ROLLBACK/$index.state"
+        cp -p "$path" "$PRIVATE_PULL_ROLLBACK/$index.file" || return 1
+      else
+        printf 'absent\n' > "$PRIVATE_PULL_ROLLBACK/$index.state"
+      fi
+      index=$((index + 1))
+    done
+  done
+}
+
+rollback_private_pull() {
+  [[ -n "$PRIVATE_PULL_ROLLBACK" && -d "$PRIVATE_PULL_ROLLBACK" ]] || return 0
+  local index=0 path state
+  while IFS= read -r path; do
+    state="$(<"$PRIVATE_PULL_ROLLBACK/$index.state")"
+    [[ ! -L "$path" ]] || { print_error "Cannot roll back symbolic-link private target: $path"; return 1; }
+    if [[ "$state" == present ]]; then
+      mkdir -p "$(dirname "$path")"
+      cp -p "$PRIVATE_PULL_ROLLBACK/$index.file" "$path" || return 1
+    else
+      rm -f "$path"
+    fi
+    index=$((index + 1))
+  done < "$PRIVATE_PULL_ROLLBACK/paths"
+  rm -rf "$PRIVATE_PULL_ROLLBACK"
+  PRIVATE_PULL_ROLLBACK=""
+}
+
+commit_private_pull() {
+  [[ -z "$PRIVATE_PULL_ROLLBACK" ]] || rm -rf "$PRIVATE_PULL_ROLLBACK"
+  PRIVATE_PULL_ROLLBACK=""
+}
+
+finish_private_pull() {
+  local status="$1"
+  trap - EXIT
+  if [[ -n "$PRIVATE_PULL_ROLLBACK" ]]; then
+    if ! rollback_private_pull; then
+      print_error "Private restore rollback failed; retain snapshot: $PRIVATE_PULL_ROLLBACK"
+      status=1
+    fi
+  fi
+  smb_cleanup
+  exit "$status"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Confirm destructive-ish save
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ "$MODE" == "save" ]]; then
   print_info "SAVE mode: your local AI configs will be uploaded to ${SMB_SERVER}/${SMB_AI_PATH}"
-  ask_for_confirmation "Upload current local Claude/Codex/OpenCode/agent-rack configs to the share?"
+  ask_for_confirmation "Upload current owner-private Claude, Codex, and OpenCode state to the share?"
   answer_is_yes || { print_info "Aborted."; exit 0; }
 fi
 
@@ -185,57 +257,33 @@ get_smb_credentials || exit 1
 unmount_stale_share
 mount_smb_share "${SMB_AI_PATH}"
 
-# Never restore a historical or partial agent-rack pair. This check runs before
-# any local file is changed and is also used before saving a new source pair.
-if [[ "$MODE" == "pull" ]]; then
-  if [[ ! -f "$MOUNT_POINT/agent-rack/config.json" || ! -f "$MOUNT_POINT/agent-rack/agent-rack.profiles.json" ]]; then
-    print_error "agent-rack restore pair is incomplete on the share"
-    exit 1
-  fi
-  python3 "$ROOT_DIR/utils/validate-agent-rack-policy.py" \
-    "$MOUNT_POINT/agent-rack/config.json" \
-    "$MOUNT_POINT/agent-rack/agent-rack.profiles.json"
-fi
-
-if [[ "$MODE" == "pull" ]]; then
-  if [[ ! -d "$MOUNT_POINT/agents/skills" || ! -d "$MOUNT_POINT/claude/skills" ]]; then
-    print_error "skill restore sources are incomplete on the share (agents/skills and claude/skills are required)"
-    exit 1
-  fi
-fi
-
-if [[ "$MODE" == "save" ]]; then
-  python3 "$ROOT_DIR/utils/validate-agent-rack-policy.py" \
-    "$AGENT_RACK_TARGET/config.json" \
-    "$AGENT_RACK_TARGET/agent-rack.profiles.json"
-fi
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Sync all three tools
 # ─────────────────────────────────────────────────────────────────────────────
 print_info "AI config sync — mode: ${MODE}"
-sync_tool "claude"   "$CLAUDE_TARGET"   "${CLAUDE_ITEMS[@]}"
-sync_tool "claude-desktop" "$CLAUDE_DESKTOP_TARGET" "${CLAUDE_DESKTOP_ITEMS[@]}"
-sync_tool "codex"    "$CODEX_TARGET"    "${CODEX_ITEMS[@]}"
-sync_tool "agents"   "$AGENTS_TARGET"   "${AGENTS_ITEMS[@]}"
-sync_tool "opencode" "$OPENCODE_TARGET" "${OPENCODE_ITEMS[@]}"
-sync_tool "agent-rack" "$AGENT_RACK_TARGET" "${AGENT_RACK_ITEMS[@]}"
+if [[ "$MODE" == pull ]] && ! snapshot_private_pull; then
+  commit_private_pull
+  exit 1
+fi
+if ! sync_tool "claude" "$CLAUDE_TARGET" "${CLAUDE_ITEMS[@]}" ||
+   ! sync_tool "claude-desktop" "$CLAUDE_DESKTOP_TARGET" "${CLAUDE_DESKTOP_ITEMS[@]}" ||
+   ! sync_tool "codex" "$CODEX_TARGET" "${CODEX_ITEMS[@]}" ||
+   ! sync_tool "opencode" "$OPENCODE_TARGET" "${OPENCODE_ITEMS[@]}"; then
+  rollback_private_pull
+  exit 1
+fi
 
 if [[ "$MODE" == "pull" ]]; then
-  # OpenCode custom tools/plugins import @opencode-ai/plugin — node_modules is
-  # deliberately NOT synced, so install deps from the pulled package.json.
-  # Without this, the tools fail to load on a fresh machine (silent: the app
-  # answers nothing). Requires npm (Brewfile installs node before this step).
-  if [[ -f "$OPENCODE_TARGET/package.json" ]] && command_exists npm; then
-    print_info "Installing OpenCode tool/plugin deps (npm install in $OPENCODE_TARGET)…"
-    ( cd "$OPENCODE_TARGET" && npm install --no-fund --no-audit >/dev/null 2>&1 ) \
-      && print_success "OpenCode deps installed" \
-      || print_error "npm install failed in $OPENCODE_TARGET — run it manually so custom tools load"
+  if ! bash "$ROOT_DIR/utils/15-agent-rack.sh"; then
+    rollback_private_pull
+    print_error "Infra harness reconciliation failed; restored owner-private AI state."
+    exit 1
   fi
+  commit_private_pull
   print_success "AI configs pulled from the tresor."
   print_info "If a tool still asks you to log in, run its login once (e.g. 'claude', 'codex login')."
   print_info "OpenCode/Lumo: opencode.jsonc from the share already contains your apiKey."
-  print_info "agent-rack: run utils/15-agent-rack.sh after the pull so version, registrations, and skills are (re)installed."
+  print_info "Infra harness reconciliation completed after the private-state pull."
   print_info "After pull: fully quit + reopen the OpenCode app so it reloads config/tools."
 else
   print_success "AI configs saved to the tresor. Nothing was written to this git repo."

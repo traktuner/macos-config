@@ -123,31 +123,42 @@ bootstrap script.
 ### agent-rack MCP
 
 `utils/15-agent-rack.sh` installs the pinned stock
-[`agent-rack`](https://github.com/lakpriya1s/agent-rack) npm package (an MCP
-server that drives claude, codex, and opencode CLI agents as MCP tools) and
-registers it with every installed local harness through agent-rack's own
-official idempotent `install` and `cp` commands — never by hand-editing client
-configs in this repo. The version is pinned in `utils/config.properties`
-(`AGENT_RACK_VERSION`); update it deliberately, do not float to `latest`.
+[`agent-rack`](https://github.com/lakpriya1s/agent-rack) npm package and then
+applies the authoritative Infra harness package. The package owns agent-rack
+policies, profiles, skills, root rules, MCP registration, and client settings.
+The package runtime lock pins the agent-rack version; this repository does not
+keep a second version, policy, or local overlay.
 
-The script is safe to re-run. It also raises the stock
-`security.defaultTimeoutSeconds` from 600 to 43200 (12h) because autonomous
-sessions here run for many hours, and sets `security.maxConcurrentSessions`.
-No LaunchAgent or daemon is created: agent-rack runs over stdio and is
-started by each MCP client on demand.
+The script is safe to re-run. No LaunchAgent or daemon is created: agent-rack
+runs over stdio and starts when an MCP client needs it.
 
 Use the mounted `developer/repos/personal/macos-config` checkout for these scripts.
-The default Infra policy source is under `~/Netzlaufwerke/developer/repos/infra/infra`.
-Set `AGENT_RACK_POLICY_SOURCE` for another mount layout. If that source is absent,
-the installer validates and uses the restored `~/.config/agent-rack` policy set.
+The default Infra harness source is `~/Netzlaufwerke/developer/repos/infra/infra`.
+Set `INFRA_HARNESS_SOURCE` for another checkout. If it is unavailable, the
+script can apply only a verified installed release at
+`~/.local/share/infra-harness/current`. The cached target must resolve to
+`releases/<64-hex-digest>` and pass manifest verification against that directory
+digest. A live source must build and verify a temporary complete release before
+the private pull starts. It never restores raw copied policy files as an
+alternative writer.
 
-Restore private configurations with `bash utils/12-ai-config.sh pull`, then run
-`bash utils/13-onyx-mcp.sh` and `bash utils/15-agent-rack.sh`.
-The private backup must include `agents/skills`, `claude/skills`, and the full
-agent-rack policy set. Save those sources with `bash utils/12-ai-config.sh save`.
-Changed curated items receive recoverable backups; synchronization removes
-obsolete entries inside those items. Unchanged content does not create backups.
-Conflicting skill quarantine destinations stop reconciliation for inspection.
+`bash utils/12-ai-config.sh pull` restores only owner-private state, then it
+invokes `utils/15-agent-rack.sh` to reconcile the authoritative Infra package.
+It restores Claude settings and Desktop configuration, Codex native config,
+hooks, and auth, plus OpenCode `opencode.jsonc`. It does not restore or save
+rules, skills, plugins, agent-rack policies or profiles, code, or lockfiles.
+Changed curated items receive recoverable backups. Synchronization removes
+obsolete entries only inside those owner-private items.
+
+Before a pull, `12-ai-config.sh` runs `15-agent-rack.sh --check-source`.
+The check accepts the configured Infra checkout or the installed release at
+`~/.local/share/infra-harness/current`. The cached release must pass its bundle
+manifest verification before the script reads its runtime lock. Save mode does
+not install or reconcile managed harness state. If an existing global
+`agent-rack` version differs from the runtime lock, update it as a separate
+approved prerequisite. Restore does not replace an existing working npm runtime.
+If no global runtime exists, a newly installed pinned runtime can remain after a
+later reconciliation failure; the previous wrapper is restored.
 
 The agent-rack installer also restores `~/.local/bin/opencode`. This wrapper
 bypasses the observed OpenCode 1.18.30 prompt regression using the checksum-verified
