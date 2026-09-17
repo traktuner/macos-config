@@ -55,8 +55,15 @@
   register only missing entries; `agent-rack-harness-limits.mjs` then re-applies the limits
   (`utils/15-agent-rack.sh`).
 
-- Keep all three reliability assets in both agent-rack install and restore lists, and apply the patch before starting a new MCP server. Existing servers retain loaded modules. Resolve OpenCode workers through the existing `.local/bin/opencode` version guard: a parent PATH selected broken 1.18.30 even though 1.18.20 was installed (`utils/15-agent-rack.sh`, `utils/12-ai-config.sh`, canonical `agent-rack-worker-capabilities.mjs`).
+- Apply the complete Infra package before starting new MCP servers. Infra now owns the reliability assets, native routing quarantine, root rules, and MCP reconciliation described above; do not restore their old macos-config copy lists or validators. Existing servers retain loaded modules. Resolve OpenCode workers through `.local/bin/opencode`: the parent PATH once selected broken 1.18.30 despite the installed 1.18.20 guard (`utils/15-agent-rack.sh`, `utils/12-ai-config.sh`).
 
 - **Resolve the `infra-harness/current` symlink before verifying a cached release.** The bundle verifier rejects symlink ancestors by design. Verify the physical immutable release directory before reading its runtime lock (`utils/15-agent-rack.sh`).
 
 - **Do not trust a cached bundle digest from its manifest alone.** `current` must resolve exactly below `~/.local/share/infra-harness/releases/<64-hex-digest>`, and that directory name is the verifier expectation; otherwise a copied manifest can select an arbitrary release (`utils/15-agent-rack.sh`).
+
+- Preserve an explicit Infra source through both restore scripts. Loading
+  `config.properties` used to replace the caller's override before invoking the
+  shared installer. Preflight the complete package before a private pull and
+  retain private snapshots until shared reconciliation succeeds. Propagate copy
+  errors explicitly: Bash disables implicit `set -e` handling inside functions
+  called from an `if` condition (`utils/12-ai-config.sh`, `utils/15-agent-rack.sh`).

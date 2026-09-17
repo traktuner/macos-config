@@ -153,7 +153,9 @@ obsolete entries only inside those owner-private items.
 Before a pull, `12-ai-config.sh` runs `15-agent-rack.sh --check-source`.
 The check accepts the configured Infra checkout or the installed release at
 `~/.local/share/infra-harness/current`. The cached release must pass its bundle
-manifest verification before the script reads its runtime lock. Save mode does
+manifest verification before the script reads its runtime lock. The checkout and
+installed cache remain trusted owner-local code; this check detects corruption
+and does not authenticate a malicious replacement by the same OS account. Save mode does
 not install or reconcile managed harness state. If an existing global
 `agent-rack` version differs from the runtime lock, update it as a separate
 approved prerequisite. Restore does not replace an existing working npm runtime.
